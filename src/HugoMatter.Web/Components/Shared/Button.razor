@@ -2,7 +2,7 @@
 
 <button
     type="@Type"
-    class="@GetClasses()"
+    class="@($"{GetClasses()} {CssClass}".Trim())"
     disabled="@Disabled"
     @onclick="OnClick">
     @if (Loading)
@@ -31,6 +31,9 @@
 
     [Parameter]
     public string? IconName { get; set; }
+
+    [Parameter]
+    public string? CssClass { get; set; }
 
     [Parameter]
     public EventCallback OnClick { get; set; }
