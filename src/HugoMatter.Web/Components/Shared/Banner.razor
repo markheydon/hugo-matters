@@ -1,0 +1,82 @@
+@namespace HugoMatter.Web.Components.Shared
+
+@if (IsVisible)
+{
+    <div class="@GetClasses()" role="alert">
+        <div class="flex items-start gap-3">
+            <Icon Name="@GetIconName()" Size="20" CssClass="shrink-0 mt-0.5" />
+            <div class="flex-1 min-w-0">
+                @if (Title is not null)
+                {
+                    <p class="font-medium">@Title</p>
+                }
+                @if (Message is not null)
+                {
+                    <p class="@(Title is not null ? "mt-1 text-sm" : "")">@Message</p>
+                }
+            </div>
+            @if (Dismissible)
+            {
+                <button type="button" class="shrink-0 rounded p-1 hover:bg-black/5" @onclick="Dismiss">
+                    <Icon Name="x" Size="16" />
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public BannerVariant Variant { get; set; } = BannerVariant.Info;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public bool Dismissible { get; set; } = true;
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private async Task Dismiss()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+
+    private string GetClasses()
+    {
+        var baseClasses = "rounded-lg border px-4 py-3";
+        return baseClasses + " " + (Variant switch
+        {
+            BannerVariant.Success => "border-green-200 bg-green-50 text-green-800",
+            BannerVariant.Error => "border-red-200 bg-red-50 text-red-800",
+            BannerVariant.Warning => "border-amber-200 bg-amber-50 text-amber-800",
+            BannerVariant.Info => "border-blue-200 bg-blue-50 text-blue-800",
+            _ => "border-blue-200 bg-blue-50 text-blue-800",
+        });
+    }
+
+    private string GetIconName() => Variant switch
+    {
+        BannerVariant.Success => "check-circle",
+        BannerVariant.Error => "alert-circle",
+        BannerVariant.Warning => "alert-circle",
+        BannerVariant.Info => "alert-circle",
+        _ => "alert-circle",
+    };
+
+    public enum BannerVariant
+    {
+        Success,
+        Error,
+        Warning,
+        Info,
+    }
+}

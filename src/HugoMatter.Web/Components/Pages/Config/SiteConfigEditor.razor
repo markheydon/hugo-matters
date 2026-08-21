@@ -1,0 +1,119 @@
+@page "/config"
+@rendermode InteractiveServer
+@inject HugoMatterApiClient Api
+
+<PageTitle>Site Configuration</PageTitle>
+
+<div class="max-w-2xl">
+    <h1 class="text-2xl font-bold text-slate-900">Site configuration</h1>
+    <p class="mt-1 text-sm text-slate-600">
+        Edit minimal Profile-related site configuration exposed by your theme pack.
+    </p>
+
+    <Banner
+        Variant="@bannerVariant"
+        Message="@bannerMessage"
+        IsVisible="@(bannerMessage is not null)"
+        IsVisibleChanged="@((bool v) => { if (!v) bannerMessage = null; })" />
+
+    @if (loading)
+    {
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading configuration…</span>
+        </div>
+    }
+    else
+    {
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            @if (fields.Count == 0)
+            {
+                <p class="text-sm text-slate-600">No site configuration fields are available for your theme pack.</p>
+            }
+            else
+            {
+                <ThemeFieldEditor
+                    Fields="@fields"
+                    FrontMatter="@config"
+                    FrontMatterChanged="OnConfigChanged" />
+
+                <div class="mt-6">
+                    <Button IconName="save" OnClick="SaveConfig" Loading="@saving">
+                        Save configuration
+                    </Button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private Dictionary<string, object?> config = new();
+    private List<FieldDefinitionDto> fields = [];
+    private bool loading = true;
+    private bool saving;
+    private string? bannerMessage;
+    private Banner.BannerVariant bannerVariant = Banner.BannerVariant.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConfig();
+    }
+
+    private async Task LoadConfig()
+    {
+        loading = true;
+        bannerMessage = null;
+
+        try
+        {
+            config = await Api.GetSiteConfigAsync();
+
+            var site = await Api.GetConnectionAsync();
+            if (site is not null)
+            {
+                var pack = await Api.GetThemePackAsync(site.ThemePackId);
+                fields = pack?.SiteConfigFields ?? [];
+            }
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task OnConfigChanged(Dictionary<string, object?> updated)
+    {
+        config = updated;
+        await Task.CompletedTask;
+    }
+
+    private async Task SaveConfig()
+    {
+        saving = true;
+
+        try
+        {
+            config = await Api.UpdateSiteConfigAsync(config);
+            ShowBanner("Site configuration saved to session buffer.", Banner.BannerVariant.Success);
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private void ShowBanner(string message, Banner.BannerVariant variant)
+    {
+        bannerMessage = message;
+        bannerVariant = variant;
+    }
+}

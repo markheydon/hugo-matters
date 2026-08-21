@@ -1,0 +1,188 @@
+@page "/preview"
+@rendermode InteractiveServer
+@inject HugoMatterApiClient Api
+
+<PageTitle>Site Preview</PageTitle>
+
+<div class="max-w-3xl">
+    <h1 class="text-2xl font-bold text-slate-900">Site preview</h1>
+    <p class="mt-1 text-sm text-slate-600">
+        Start a real Hugo preview from saved session content. Unsaved buffer changes are not included.
+    </p>
+
+    <Banner
+        Variant="@bannerVariant"
+        Message="@bannerMessage"
+        IsVisible="@(bannerMessage is not null)"
+        IsVisibleChanged="@((bool v) => { if (!v) bannerMessage = null; })" />
+
+    @if (loading)
+    {
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading preview status…</span>
+        </div>
+    }
+    else
+    {
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-slate-900">Preview status</h2>
+                <span class="@GetStatusClasses(preview?.Status ?? "Stopped")">
+                    @(preview?.Status ?? "Stopped")
+                </span>
+            </div>
+
+            @if (preview is not null)
+            {
+                <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+                    @if (preview.BaseUrl is not null)
+                    {
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Preview URL</dt>
+                            <dd class="mt-1 text-sm">
+                                <a href="@preview.BaseUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                                    @preview.BaseUrl
+                                    <Icon Name="external-link" Size="14" />
+                                </a>
+                            </dd>
+                        </div>
+                    }
+                    @if (preview.SourceRef is not null)
+                    {
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Source commit</dt>
+                            <dd class="mt-1 font-mono text-sm text-slate-900">@preview.SourceRef[..Math.Min(7, preview.SourceRef.Length)]</dd>
+                        </div>
+                    }
+                    @if (preview.ErrorMessage is not null)
+                    {
+                        <div class="sm:col-span-2">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Error</dt>
+                            <dd class="mt-1 text-sm text-red-600">@preview.ErrorMessage</dd>
+                        </div>
+                    }
+                </dl>
+            }
+
+            <div class="mt-6 flex flex-wrap gap-3">
+                @if (preview?.Status is "Running" or "Starting")
+                {
+                    <Button Variant="Button.ButtonVariant.Danger" IconName="square" OnClick="StopPreview" Loading="@stopping">
+                        Stop preview
+                    </Button>
+                    @if (preview.BaseUrl is not null)
+                    {
+                        <a href="@preview.BaseUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                            <Icon Name="external-link" Size="16" />
+                            Open preview
+                        </a>
+                    }
+                }
+                else
+                {
+                    <Button IconName="play" OnClick="StartPreview" Loading="@starting">
+                        Start preview
+                    </Button>
+                }
+                <Button Variant="Button.ButtonVariant.Secondary" IconName="loader" OnClick="RefreshStatus" Loading="@refreshing">
+                    Refresh status
+                </Button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private SitePreviewDto? preview;
+    private bool loading = true;
+    private bool starting;
+    private bool stopping;
+    private bool refreshing;
+    private string? bannerMessage;
+    private Banner.BannerVariant bannerVariant = Banner.BannerVariant.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshStatus();
+    }
+
+    private async Task RefreshStatus()
+    {
+        refreshing = true;
+        loading = preview is null;
+
+        try
+        {
+            preview = await Api.GetSitePreviewAsync();
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            loading = false;
+            refreshing = false;
+        }
+    }
+
+    private async Task StartPreview()
+    {
+        starting = true;
+        bannerMessage = null;
+
+        try
+        {
+            preview = await Api.StartSitePreviewAsync();
+            ShowBanner("Site preview started.", Banner.BannerVariant.Success);
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            starting = false;
+        }
+    }
+
+    private async Task StopPreview()
+    {
+        stopping = true;
+        bannerMessage = null;
+
+        try
+        {
+            await Api.StopSitePreviewAsync();
+            preview = null;
+            ShowBanner("Site preview stopped.", Banner.BannerVariant.Success);
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            stopping = false;
+        }
+    }
+
+    private void ShowBanner(string message, Banner.BannerVariant variant)
+    {
+        bannerMessage = message;
+        bannerVariant = variant;
+    }
+
+    private static string GetStatusClasses(string status)
+    {
+        var baseClasses = "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium";
+        return baseClasses + " " + (status switch
+        {
+            "Running" => "bg-green-100 text-green-800",
+            "Starting" => "bg-blue-100 text-blue-800",
+            "Failed" => "bg-red-100 text-red-800",
+            _ => "bg-slate-100 text-slate-600",
+        });
+    }
+}

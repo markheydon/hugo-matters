@@ -8,4 +8,12 @@
     <ProjectReference Include="..\HugoMatter.ServiceDefaults\HugoMatter.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <Target Name="NpmInstall" BeforeTargets="BuildTailwind" Condition="Exists('package.json') And !Exists('node_modules')">
+    <Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <Target Name="BuildTailwind" BeforeTargets="Build" Condition="Exists('package.json')">
+    <Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>

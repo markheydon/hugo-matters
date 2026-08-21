@@ -1,0 +1,62 @@
+@namespace HugoMatter.Web.Components.Shared
+
+<button
+    type="@Type"
+    class="@GetClasses()"
+    disabled="@Disabled"
+    @onclick="OnClick">
+    @if (Loading)
+    {
+        <Icon Name="loader" CssClass="animate-spin" Size="16" />
+    }
+  @if (IconName is not null)
+    {
+        <Icon Name="@IconName" Size="16" />
+    }
+    @ChildContent
+</button>
+
+@code {
+    [Parameter]
+    public string Type { get; set; } = "button";
+
+    [Parameter]
+    public ButtonVariant Variant { get; set; } = ButtonVariant.Primary;
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public bool Loading { get; set; }
+
+    [Parameter]
+    public string? IconName { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string GetClasses()
+    {
+        var baseClasses = "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+
+        return baseClasses + " " + (Variant switch
+        {
+            ButtonVariant.Primary => "bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500",
+            ButtonVariant.Secondary => "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-brand-500",
+            ButtonVariant.Danger => "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+            ButtonVariant.Ghost => "text-slate-600 hover:bg-slate-100 focus:ring-brand-500",
+            _ => "bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500",
+        });
+    }
+
+    public enum ButtonVariant
+    {
+        Primary,
+        Secondary,
+        Danger,
+        Ghost,
+    }
+}

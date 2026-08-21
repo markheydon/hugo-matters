@@ -1,0 +1,157 @@
+@page "/session"
+@rendermode InteractiveServer
+@inject HugoMatterApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Editing Session</PageTitle>
+
+<div class="max-w-3xl">
+    <h1 class="text-2xl font-bold text-slate-900">Editing session</h1>
+    <p class="mt-1 text-sm text-slate-600">
+        Start or resume a single editing session mapped to a branch and pull request.
+    </p>
+
+    <Banner
+        Variant="Banner.BannerVariant.Error"
+        Title="Session error"
+        Message="@errorMessage"
+        IsVisible="@(errorMessage is not null)"
+        IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
+
+    @if (loading)
+    {
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading session…</span>
+        </div>
+    }
+    else if (session is null)
+    {
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div class="flex items-start gap-4">
+                <div class="rounded-lg bg-brand-50 p-3 text-brand-600">
+                    <Icon Name="git-branch" Size="28" />
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">No active session</h2>
+                    <p class="mt-1 text-sm text-slate-600">
+                        Starting a session creates a branch and open pull request against your default branch.
+                        Only one session can be active at a time.
+                    </p>
+                    <Button class="mt-4" IconName="plus" OnClick="StartSession" Loading="@starting">
+                        Start editing session
+                    </Button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="mt-8 space-y-6">
+            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-slate-900">Active session</h2>
+                    <span class="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                        @session.State
+                    </span>
+                </div>
+
+                <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Branch</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">@session.BranchName</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Base branch</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">@session.BaseBranch</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Pull request</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">
+                            @if (session.PullRequestUrl is not null)
+                            {
+                                <a href="@session.PullRequestUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                                    @($"#{session.PullRequestNumber}")
+                                    <Icon Name="external-link" Size="14" />
+                                </a>
+                            }
+                            else
+                            {
+                                @($"#{session.PullRequestNumber}")
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Unsaved edits</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">
+                            @(session.HasUnsavedLocalEdits ? "Yes — save before publishing" : "No")
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="mt-6 flex flex-wrap gap-3">
+                    <Button IconName="file-text" OnClick="@(() => Navigation.NavigateTo("/content"))">
+                        Edit content
+                    </Button>
+                    <Button Variant="Button.ButtonVariant.Secondary" IconName="eye" OnClick="@(() => Navigation.NavigateTo("/preview"))">
+                        Site preview
+                    </Button>
+                    <Button Variant="Button.ButtonVariant.Secondary" IconName="settings" OnClick="@(() => Navigation.NavigateTo("/config"))">
+                        Site config
+                    </Button>
+                </div>
+            </div>
+
+            <SessionActions Session="@session" OnSessionChanged="HandleSessionChanged" />
+        </div>
+    }
+</div>
+
+@code {
+    private EditingSessionDto? session;
+    private bool loading = true;
+    private bool starting;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSession();
+    }
+
+    private async Task LoadSession()
+    {
+        loading = true;
+        try
+        {
+            session = await Api.GetSessionAsync();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task StartSession()
+    {
+        starting = true;
+        errorMessage = null;
+
+        try
+        {
+            session = await Api.StartSessionAsync();
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            starting = false;
+        }
+    }
+
+    private async Task HandleSessionChanged()
+    {
+        await LoadSession();
+    }
+}
