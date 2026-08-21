@@ -1,50 +1,177 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: (none) → 1.0.0
+- Modified principles: N/A (initial ratification; prior file was unresolved template placeholders)
+- Added sections:
+  - Core Principles I–VIII (Security by Default; Git Is Source of Truth;
+    Theme Knowledge Lives in the Product; Local-First Operation;
+    Content-First Scope; Simple Session Model; Faithful Preview and
+    Durable Integrations; Simplicity and Clear Boundaries)
+  - Quality Expectations
+  - Document Boundaries
+  - Governance
+- Removed sections: N/A
+- Follow-up TODOs: none
+-->
+# Hugo Matter Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Security by Default
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Secure behavior is the default, not an opt-in.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- MUST use least-privilege access to the owner's repository and related
+  platform capabilities.
+- MUST protect credentials, tokens, and secrets: never commit them; never
+  log them; never embed them in generated site content.
+- MUST validate and constrain untrusted input (paths, content, config,
+  preview inputs).
+- MUST isolate preview and build work so it cannot freely reach beyond its
+  intended workspace.
+- Private repositories MUST be handled with the same or stricter care as
+  public ones.
+- Prefer safe failure over silent insecure success.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: Solo owners entrust repository access and secrets to the
+product; insecure defaults or silent failure modes create durable harm that
+features cannot later paper over.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Git Is Source of Truth
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Editorial work MUST flow through the site's Git repository and review
+workflow.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- An editing session MUST map to a branch plus a pull request.
+- Saving MUST persist as commits on that session.
+- Publishing MUST mean merging into the site's main branch.
+- The product MUST NOT invent a parallel content store that can diverge from
+  the repository as the system of record.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale**: Owners already trust Git for history and review; a second
+store invites drift, lost edits, and unclear publish semantics.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### III. Theme Knowledge Lives in the Product
+
+Theme-specific frontmatter, fields, defaults, and editing behavior MUST be
+defined as versioned theme packs inside Hugo Matter—not redeclared in each
+owner's site repository.
+
+- The first pack is Hugo Profile.
+- Packs MUST be isolatable so additional themes can be added without
+  redesigning core editing-session flows.
+- Owner repositories remain ordinary Hugo content repositories.
+
+**Rationale**: Centralized, versioned packs keep sites ordinary Hugo trees
+and let the product evolve theme UX without requiring owners to maintain
+editor schema in-repo.
+
+### IV. Local-First Operation
+
+v1 MUST run as a local tool on the editor's machine.
+
+- Real site preview MUST use an actual Hugo build/serve of the current
+  editing session in an isolated local runtime.
+- Design boundaries SHOULD allow a future hosted offering.
+- v1 MUST NOT depend on multi-tenant hosting, remote build workers, or
+  commercial billing.
+- Core domain logic MUST NOT be coupled to a specific hosting model.
+
+**Rationale**: Local-first delivers real preview and private-repo safety for
+solo owners without forcing early multi-tenant or billing complexity.
+
+### V. Content-First Scope
+
+Primary value is creating and editing posts and pages.
+
+- Limited site configuration is allowed when required for day-one Hugo
+  Profile usefulness.
+- Broader site plumbing (menus, media libraries, data files, deep Hugo
+  advanced features, visual shortcode editing) MUST remain lower priority
+  until the content edit → preview → publish loop is solid.
+
+**Rationale**: A reliable content loop proves the product; peripheral site
+plumbing dilutes v1 without unlocking the core job.
+
+### VI. Simple Session Model
+
+v1 MUST support a single active editing session per connected site (one
+open pull request).
+
+- Concurrent sessions, multi-editor collaboration, and advanced conflict UX
+  are future concerns.
+- Do not complicate v1 for them unless required for correctness or security.
+
+**Rationale**: One session per site keeps mental model and conflict surface
+small while the core loop is proven.
+
+### VII. Faithful Preview and Durable Integrations
+
+- In-editor preview MAY be approximate (for example, shortcodes need not
+  render).
+- Site preview MUST be a real Hugo build of the session.
+- Prefer durable, least-privilege platform integrations for repository
+  access over ad-hoc long-lived personal credentials.
+- Prefer content round-trip fidelity over editor features that corrupt Hugo
+  source.
+
+**Rationale**: Owners judge the product by what the site actually builds and
+by whether repository access stays least-privilege and reversible.
+
+### VIII. Simplicity and Clear Boundaries
+
+YAGNI for v1.
+
+- Prefer clear separation between UI, application/services, repository
+  integration, theme packs, and preview orchestration.
+- Added complexity MUST be justified by a concrete requirement.
+- Spec Kit artifacts MUST stay separated: specifications describe what/why
+  without an implementation stack; plans carry technology and architecture
+  choices.
+
+**Rationale**: Clear boundaries and justified complexity keep the system
+evolvable and prevent premature stack or feature lock-in.
+
+## Quality Expectations
+
+Critical behaviors MUST be covered by automated tests at the boundaries that
+matter:
+
+- Session lifecycle (create, save/commit, publish/merge, abandon)
+- Theme-pack application (fields, defaults, isolation across packs)
+- Repository operations (branch, commit, pull request, merge semantics)
+- Preview isolation (workspace confinement; no unintended reach)
+
+Changes that affect security-sensitive paths MUST include appropriate
+automated coverage. Prefer tests that fail when a principle is violated over
+tests that only assert happy-path UI chrome.
+
+**Rationale**: Principles are durable only when regressions are detectable;
+security and source-of-truth paths are the highest-cost failure modes.
+
+## Document Boundaries
+
+This constitution and feature specifications MUST remain technology-agnostic
+regarding frameworks, languages, UI toolkits, container runtimes, and
+specific cloud or VCS product APIs. Those choices belong in implementation
+plans. Domain terms (Hugo, frontmatter, theme, pull request, editing
+session) are permitted.
+
+**Rationale**: Keeping stack choices out of governance and specs preserves
+principle longevity when implementation details change.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes ad-hoc practice and conflicting guidance in
+specs, plans, or tasks.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+- Amendments MUST include documented rationale and a Semantic Versioning
+  bump (MAJOR for incompatible principle removal/redefinition; MINOR for
+  new or materially expanded guidance; PATCH for clarifications and
+  non-semantic refinements).
+- Implementation plans MUST pass a Constitution Check before execution
+  proceeds.
+- Unjustified violations MUST be resolved by changing the spec, plan, or
+  tasks—not by weakening these principles.
+
+**Version**: 1.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-21
