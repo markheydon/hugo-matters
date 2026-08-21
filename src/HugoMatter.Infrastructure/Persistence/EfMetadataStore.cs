@@ -26,7 +26,6 @@ public sealed class EfMetadataStore : IMetadataStore
     {
         return await _dbContext.Sites
             .AsNoTracking()
-            .OrderByDescending(site => site.ConnectedAt)
             .FirstOrDefaultAsync(cancellationToken);
     }
 

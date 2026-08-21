@@ -6,7 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HugoMatter.Core\HugoMatter.Core.csproj" />
+    <ProjectReference Include="..\HugoMatter.Infrastructure\HugoMatter.Infrastructure.csproj" />
     <ProjectReference Include="..\HugoMatter.ServiceDefaults\HugoMatter.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\HugoMatter.ThemePacks\HugoMatter.ThemePacks.csproj" />
   </ItemGroup>
 
   <ItemGroup>
