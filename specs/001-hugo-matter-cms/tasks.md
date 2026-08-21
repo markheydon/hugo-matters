@@ -25,6 +25,16 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ---
 
+## Phase 0: Repo Bootstrap
+
+**Purpose**: Repository hygiene and MSBuild baseline before feature implementation
+
+- [x] T000 Add `.gitignore` (VisualStudio baseline + project extras) and untrack committed `bin/` / `obj/` artifacts
+- [x] T000a [P] Add `.editorconfig`, `Directory.Build.props`, `global.json`, and `nuget.config` at repository root
+- [x] T000b [P] Add `Directory.Packages.props` (Central Package Management), migrate starter template package references, and add MIT `LICENSE` + root `README.md`
+
+---
+
 ## Phase 1: Setup (Shared Infrastructure)
 
 **Purpose**: Project initialization and basic structure
@@ -33,7 +43,7 @@ description: "Task list for Hugo Matter CMS feature implementation"
 - [ ] T002 [P] Create HugoMatter.Core.Tests xUnit v3 project in tests/HugoMatter.Core.Tests/HugoMatter.Core.Tests.csproj
 - [ ] T003 [P] Create HugoMatter.ApiService.Tests xUnit v3 project in tests/HugoMatter.ApiService.Tests/HugoMatter.ApiService.Tests.csproj
 - [ ] T004 [P] Create HugoMatter.E2E.Tests Playwright project in tests/HugoMatter.E2E.Tests/HugoMatter.E2E.Tests.csproj
-- [ ] T005 Add NuGet package references (YamlDotNet, Octokit, EF Core SQLite, Markdig) to src/HugoMatter.Core/ and src/HugoMatter.Infrastructure/ per research.md
+- [ ] T005 Add versionless NuGet package references (YamlDotNet, Octokit, EF Core SQLite, Markdig) to src/HugoMatter.Core/ and src/HugoMatter.Infrastructure/ per research.md (versions in Directory.Packages.props)
 - [ ] T006 Wire project references: Core ← Infrastructure ← ApiService; ThemePacks → Core; Web typed HttpClient → ApiService only
 - [ ] T007 [P] Configure Tailwind CSS build pipeline in src/HugoMatter.Web/package.json and src/HugoMatter.Web/Styles/input.css
 - [ ] T008 [P] Add Lucide Icon Blazor component in src/HugoMatter.Web/Components/Shared/Icon.razor

@@ -1,0 +1,45 @@
+{
+  "name": "Hugo Matter Dev Container",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
+
+  "features": {
+    "ghcr.io/microsoft/aspire-devcontainer-feature/aspire:2": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "2"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/markheydon/devcontainer-features/copilot-likes:1": {}
+  },
+
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+
+  "containerEnv": {
+    "SSL_CERT_DIR": "/home/vscode/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs"
+  },
+
+  "postCreateCommand": "bash .devcontainer/map-github-app-secrets.sh",
+  "postStartCommand": "bash .devcontainer/setup-dev-certs.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "github.vscode-pull-request-github",
+        "github.vscode-github-actions",
+        "github.copilot",
+        "github.copilot-chat",
+        "editorconfig.editorconfig",
+        "microsoft-aspire.aspire-vscode"
+      ]
+    }
+  }
+}
