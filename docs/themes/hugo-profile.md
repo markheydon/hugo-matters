@@ -392,11 +392,19 @@ Related code today:
 
 ## Demo data plan: Turpinverse → `hugo-matters-test`
 
+### Roles
+
+| Layer | Responsibility |
+|-------|----------------|
+| **Turpinverse** | Owns **generic, platform-agnostic** domain data and fixtures (experience, education, projects, achievements, blog/gallery content, profile/site chrome). Not Hugo Profile–shaped storage. |
+| **This inventory** | Remains the **Hugo Profile field contract** for CMS / theme-pack work and for validating mappings. |
+| **`hugo-matters-test` (future)** | Consumer site: maps Turpinverse generic entities → Profile `params` / content when the site is assembled. |
+
 ### Planned test site (not created yet)
 
-A future GitHub repo named **`hugo-matters-test`** will be a dummy Hugo site using the Hugo Profile theme. It will be populated from **Turpinverse-generated demo data** once Turpinverse can emit the missing Profile shapes.
+A future GitHub repo named **`hugo-matters-test`** will be a dummy Hugo site using the Hugo Profile theme. It will be populated by **mapping Turpinverse generic demo data** into Profile shapes — not by treating Profile params/front matter as Turpinverse’s source of truth.
 
-Do **not** create `hugo-matters-test` until that data exists.
+Do **not** create `hugo-matters-test` until the generic domain data exists (optional thin Profile export adapters may land in Turpinverse or in the test-site assembly step).
 
 ### What Turpinverse already has
 
@@ -407,17 +415,17 @@ Source: [markheydon/turpinverse](https://github.com/markheydon/turpinverse) (liv
 | Personas (25) | Present | CRM + docs: name, title, bio, email, orgs, years, status |
 | Organisations (10) | Present | Trading/legal names, industry, members, website |
 | Timeline events (12) | Present | Dates, titles, persona links |
-| Deals / cases | Present | CRM CSV export — not Profile sections |
-| Hugo site | PaperMod docs site | `site/` generates personas/orgs/timeline markdown — **not** Hugo Profile |
-| Experience / education / achievements / projects (portfolio) | **Missing** | Needed for Profile homepage params |
-| Blog posts / gallery | **Missing** | Needed for Profile content demos |
-| Hero / about / contact / skills / social params | **Missing as Profile shapes** | Bio/title/email can seed them but no generator output yet |
+| Deals / cases | Present | CRM CSV export — not portfolio/career sections |
+| Hugo site | PaperMod docs site | `site/` generates personas/orgs/timeline markdown — separate from Profile mapping |
+| Experience / education / achievements / projects (portfolio) | **Missing** | Generic career/portfolio entities needed; Profile homepage params are a later mapping target |
+| Blog posts / gallery | **Missing** | Generic content types needed; Profile `content/blogs` / `layout: gallery` are consumer formats |
+| Hero / about / contact / skills / social / chrome | **Missing** | Generic profile chrome needed; Profile `params.*` is an optional export/mapping layer |
 
-Turpinverse should grow **made-up but on-brand** Profile-oriented data (experiences, education, etc.) in isolation. Later, that data feeds `hugo-matters-test`.
+Turpinverse should grow **made-up but on-brand** domain data (experiences, education, projects, content, chrome) in isolation. Mapping to Hugo Profile happens when building `hugo-matters-test` (and optionally via a thin adapter), using the shapes in this document as the consumer contract.
 
 ### Gap → issue tracking
 
-Work items for Turpinverse data generation live as GitHub issues on `markheydon/turpinverse` (search labels/titles for “Hugo Profile” / “hugo-matters”). This doc is the field-level contract those issues should follow.
+Work items live on `markheydon/turpinverse` as [#18](https://github.com/markheydon/turpinverse/issues/18) (parent) and children [#19](https://github.com/markheydon/turpinverse/issues/19)–[#22](https://github.com/markheydon/turpinverse/issues/22): generic profile / career / content demo data, with Hugo Matters / Profile as a use-case consumer. This doc stays the Profile field inventory those mappings should satisfy — not the Turpinverse schema.
 
 ---
 
