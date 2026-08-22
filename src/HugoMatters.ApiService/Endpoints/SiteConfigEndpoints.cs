@@ -1,5 +1,5 @@
-using HugoMatters.Core.Content;
 using HugoMatters.ApiService.Http;
+using HugoMatters.Core.Content;
 
 namespace HugoMatters.ApiService.Endpoints;
 

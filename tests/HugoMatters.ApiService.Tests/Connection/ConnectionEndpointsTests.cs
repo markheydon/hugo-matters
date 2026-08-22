@@ -21,7 +21,7 @@ public sealed class ConnectionEndpointsTests
         await using var factory = new HugoMattersApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/api/connection");
+        var response = await client.GetAsync("/api/connection", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -43,27 +43,25 @@ public sealed class ConnectionEndpointsTests
             });
 
         using var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync(
-            "/api/connection/authorize",
-            new AuthorizeRequest
-            {
-                InstallationId = 42,
-                Owner = "owner",
-                Repo = "repo",
-            });
+        var response = await client.PostAsJsonAsync("/api/connection/authorize", new AuthorizeRequest
+        {
+            InstallationId = 42,
+            Owner = "owner",
+            Repo = "repo",
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var payload = await response.Content.ReadFromJsonAsync<AuthorizeResponse>(HugoMattersApiFactory.JsonOptions);
+        var payload = await response.Content.ReadFromJsonAsync<AuthorizeResponse>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(payload);
         Assert.Equal("connected", payload.Status);
         Assert.NotNull(payload.Site);
         Assert.Equal("owner", payload.Site.OwnerLogin);
         Assert.Equal("repo", payload.Site.RepoName);
 
-        var getResponse = await client.GetAsync("/api/connection");
+        var getResponse = await client.GetAsync("/api/connection", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
-        var site = await getResponse.Content.ReadFromJsonAsync<ConnectedSite>(HugoMattersApiFactory.JsonOptions);
+        var site = await getResponse.Content.ReadFromJsonAsync<ConnectedSite>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(site);
         Assert.Equal(payload.Site.Id, site.Id);
     }
@@ -84,14 +82,12 @@ public sealed class ConnectionEndpointsTests
             });
 
         using var client = factory.CreateClient();
-        await client.PostAsJsonAsync(
-            "/api/connection/authorize",
-            new AuthorizeRequest { InstallationId = 42, Owner = "owner", Repo = "repo" });
+        await client.PostAsJsonAsync("/api/connection/authorize", new AuthorizeRequest { InstallationId = 42, Owner = "owner", Repo = "repo" }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var response = await client.DeleteAsync("/api/connection");
+        var response = await client.DeleteAsync("/api/connection", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
-        var getResponse = await client.GetAsync("/api/connection");
+        var getResponse = await client.GetAsync("/api/connection", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
 
@@ -104,10 +100,10 @@ public sealed class ConnectionEndpointsTests
         await using var factory = new HugoMattersApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/connection/authorize", new AuthorizeRequest());
+        var response = await client.PostAsJsonAsync("/api/connection/authorize", new AuthorizeRequest(), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<AuthorizeResponse>(HugoMattersApiFactory.JsonOptions);
+        var payload = await response.Content.ReadFromJsonAsync<AuthorizeResponse>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(payload);
         Assert.Equal("redirect", payload.Status);
         Assert.False(string.IsNullOrWhiteSpace(payload.RedirectUrl));

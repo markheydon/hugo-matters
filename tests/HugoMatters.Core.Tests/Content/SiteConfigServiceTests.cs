@@ -1,5 +1,4 @@
 using HugoMatters.Core.Content;
-using HugoMatters.Core.Models;
 using HugoMatters.Core.Ports;
 using NSubstitute;
 
@@ -41,7 +40,7 @@ public class SiteConfigServiceTests
             .Returns((GitHubFileContent?)null);
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            _service.UpdateAsync(new Dictionary<string, object?> { ["disallowed.key"] = "nope" }));
+            _service.UpdateAsync(new Dictionary<string, object?> { ["disallowed.key"] = "nope" }, TestContext.Current.CancellationToken));
 
         Assert.Contains("not allowed", ex.Message, StringComparison.Ordinal);
     }
@@ -68,7 +67,7 @@ public class SiteConfigServiceTests
         {
             ["title"] = "My Site",
             ["params.hero.title"] = "Welcome",
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal("My Site", values["title"]);
         Assert.Equal("Welcome", values["params.hero.title"]);
@@ -105,7 +104,7 @@ ignored = "skip-me"
                 Sha = "config-sha",
             });
 
-        var values = await _service.GetAsync();
+        var values = await _service.GetAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("From Git", values["title"]);
         Assert.Equal("Hero", values["params.hero.title"]);
@@ -133,7 +132,7 @@ ignored = "skip-me"
 
         var languageDefault = pack.SiteConfigFields.First(f => f.Key == "languageCode").Default;
 
-        var values = await _service.GetAsync();
+        var values = await _service.GetAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(languageDefault, values["languageCode"]);
     }

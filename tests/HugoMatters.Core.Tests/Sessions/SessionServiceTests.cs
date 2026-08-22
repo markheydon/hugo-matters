@@ -21,7 +21,7 @@ public class SessionServiceTests
     {
         _metadataStore.GetConnectedSiteAsync(Arg.Any<CancellationToken>()).Returns((ConnectedSite?)null);
 
-        var session = await _service.GetActiveSessionAsync();
+        var session = await _service.GetActiveSessionAsync(TestContext.Current.CancellationToken);
 
         Assert.Null(session);
     }
@@ -31,7 +31,7 @@ public class SessionServiceTests
     {
         _metadataStore.GetConnectedSiteAsync(Arg.Any<CancellationToken>()).Returns((ConnectedSite?)null);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.StartSessionAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.StartSessionAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class SessionServiceTests
         var site = TestHelpers.CreateConnectedSite(status: SiteStatus.AccessLost);
         _metadataStore.GetConnectedSiteAsync(Arg.Any<CancellationToken>()).Returns(site);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.StartSessionAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.StartSessionAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains("not connected", ex.Message, StringComparison.Ordinal);
     }
@@ -53,7 +53,7 @@ public class SessionServiceTests
         _metadataStore.GetConnectedSiteAsync(Arg.Any<CancellationToken>()).Returns(site);
         _metadataStore.GetActiveSessionAsync(site.Id, Arg.Any<CancellationToken>()).Returns(existing);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.StartSessionAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.StartSessionAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains("already exists", ex.Message, StringComparison.Ordinal);
     }
@@ -100,7 +100,7 @@ public class SessionServiceTests
                 HtmlUrl = "https://github.com/owner/hugo-site/pull/42",
             });
 
-        var session = await _service.StartSessionAsync();
+        var session = await _service.StartSessionAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(SessionState.Active, session.State);
         Assert.Equal(site.Id, session.SiteId);

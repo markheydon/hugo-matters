@@ -1,7 +1,7 @@
+using HugoMatters.ApiService.Http;
 using HugoMatters.Core.Api;
 using HugoMatters.Core.Content;
 using HugoMatters.Core.Models;
-using HugoMatters.ApiService.Http;
 
 namespace HugoMatters.ApiService.Endpoints;
 

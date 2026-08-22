@@ -1,6 +1,6 @@
+using HugoMatters.ApiService.Http;
 using HugoMatters.Core.Api;
 using HugoMatters.Core.Sessions;
-using HugoMatters.ApiService.Http;
 
 namespace HugoMatters.ApiService.Endpoints;
 

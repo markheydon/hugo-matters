@@ -1,4 +1,3 @@
-using HugoMatters.Core.Api;
 using HugoMatters.Core.Models;
 using HugoMatters.Core.Ports;
 using HugoMatters.Core.Sessions;
@@ -30,7 +29,7 @@ public class PublishServiceTests
         var session = TestHelpers.CreateActiveSession(site.Id);
         SetupContext(site, session, hasChanges: false);
 
-        var result = await _service.PublishAsync();
+        var result = await _service.PublishAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(PublishOutcome.BlockedNoChanges, result.Outcome);
         await _gitHubRepository.DidNotReceive().MergePullRequestAsync(
@@ -48,7 +47,7 @@ public class PublishServiceTests
         var session = TestHelpers.CreateActiveSession(site.Id, hasUnsavedLocalEdits: true);
         SetupContext(site, session, hasChanges: true);
 
-        var result = await _service.PublishAsync();
+        var result = await _service.PublishAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(PublishOutcome.BlockedUnsavedEdits, result.Outcome);
     }
@@ -71,7 +70,7 @@ public class PublishServiceTests
                 FailureReason = "Branch protection rules blocked merge.",
             });
 
-        var result = await _service.PublishAsync();
+        var result = await _service.PublishAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(PublishOutcome.FailedMerge, result.Outcome);
         Assert.Equal(SessionState.Active, session.State);
@@ -95,7 +94,7 @@ public class PublishServiceTests
                 MergeCommitSha = "merge-sha",
             });
 
-        var result = await _service.PublishAsync();
+        var result = await _service.PublishAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(PublishOutcome.Succeeded, result.Outcome);
         Assert.Equal("merge-sha", result.MergeCommitSha);

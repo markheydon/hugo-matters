@@ -1,9 +1,9 @@
+using HugoMatters.ApiService.Http;
 using HugoMatters.Core.Api;
 using HugoMatters.Core.Models;
 using HugoMatters.Core.Ports;
 using HugoMatters.Core.Preview;
 using HugoMatters.Core.Sessions;
-using HugoMatters.ApiService.Http;
 
 namespace HugoMatters.ApiService.Endpoints;
 

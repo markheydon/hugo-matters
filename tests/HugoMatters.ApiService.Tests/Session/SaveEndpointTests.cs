@@ -23,30 +23,26 @@ public sealed class SaveEndpointTests
 
         using var client = factory.CreateClient();
         await ConnectSite(client);
-        await client.PostAsync("/api/session", null);
+        await client.PostAsync("/api/session", null, TestContext.Current.CancellationToken);
 
-        var createResponse = await client.PostAsJsonAsync(
-            "/api/content",
-            new ContentCreateRequest
-            {
-                ContentType = ContentTypeKind.Post,
-                Slug = "hello-world",
-                Title = "Hello",
-            });
+        var createResponse = await client.PostAsJsonAsync("/api/content", new ContentCreateRequest
+        {
+            ContentType = ContentTypeKind.Post,
+            Slug = "hello-world",
+            Title = "Hello",
+        }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
 
-        var saveResponse = await client.PostAsJsonAsync(
-            "/api/session/save",
-            new SaveRequest { CommitMessage = "Save test post" });
+        var saveResponse = await client.PostAsJsonAsync("/api/session/save", new SaveRequest { CommitMessage = "Save test post" }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
-        var saveResult = await saveResponse.Content.ReadFromJsonAsync<SaveResult>(HugoMattersApiFactory.JsonOptions);
+        var saveResult = await saveResponse.Content.ReadFromJsonAsync<SaveResult>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saveResult);
         Assert.Equal("commit-sha", saveResult.CommitSha);
         Assert.False(saveResult.HasUnsavedLocalEdits);
 
-        var sessionResponse = await client.GetAsync("/api/session");
-        var session = await sessionResponse.Content.ReadFromJsonAsync<EditingSession>(HugoMattersApiFactory.JsonOptions);
+        var sessionResponse = await client.GetAsync("/api/session", TestContext.Current.CancellationToken);
+        var session = await sessionResponse.Content.ReadFromJsonAsync<EditingSession>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(session);
         Assert.False(session.HasUnsavedLocalEdits);
     }

@@ -22,7 +22,7 @@ public sealed class SessionEndpointsTests
         using var client = factory.CreateClient();
         await ConnectSite(client);
 
-        var response = await client.GetAsync("/api/session");
+        var response = await client.GetAsync("/api/session", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -38,10 +38,10 @@ public sealed class SessionEndpointsTests
 
         using var client = factory.CreateClient();
         await ConnectSite(client);
-        var response = await client.PostAsync("/api/session", null);
+        var response = await client.PostAsync("/api/session", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var session = await response.Content.ReadFromJsonAsync<EditingSession>(HugoMattersApiFactory.JsonOptions);
+        var session = await response.Content.ReadFromJsonAsync<EditingSession>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(session);
         Assert.Equal(SessionState.Active, session.State);
         Assert.False(session.HasUnsavedLocalEdits);
@@ -60,12 +60,12 @@ public sealed class SessionEndpointsTests
 
         using var client = factory.CreateClient();
         await ConnectSite(client);
-        await client.PostAsync("/api/session", null);
+        await client.PostAsync("/api/session", null, TestContext.Current.CancellationToken);
 
-        var response = await client.PostAsync("/api/session", null);
+        var response = await client.PostAsync("/api/session", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        var session = await response.Content.ReadFromJsonAsync<EditingSession>(HugoMattersApiFactory.JsonOptions);
+        var session = await response.Content.ReadFromJsonAsync<EditingSession>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(session);
         Assert.Equal(SessionState.Active, session.State);
     }

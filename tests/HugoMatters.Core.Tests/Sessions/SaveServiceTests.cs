@@ -72,7 +72,7 @@ public class SaveServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(new GitHubCommitInfo { Sha = "commit-sha" });
 
-        var result = await _service.SaveAsync(new SaveRequest { CommitMessage = "Test save" });
+        var result = await _service.SaveAsync(new SaveRequest { CommitMessage = "Test save" }, TestContext.Current.CancellationToken);
 
         Assert.Equal("commit-sha", result.CommitSha);
         Assert.False(result.HasUnsavedLocalEdits);
@@ -132,7 +132,7 @@ public class SaveServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(new GitHubCommitInfo { Sha = "delete-commit" });
 
-        var result = await _service.SaveAsync();
+        var result = await _service.SaveAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("delete-commit", result.CommitSha);
     }
@@ -163,6 +163,6 @@ public class SaveServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(Array.Empty<GitHubTreeEntry>());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SaveAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SaveAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 }

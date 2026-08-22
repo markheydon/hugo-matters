@@ -54,7 +54,7 @@ public class SitePreviewOrchestratorTests
 
         var service = new PublishService(metadataStore, gitHubRepository, bufferStore, previewOrchestrator);
 
-        var result = await service.PublishAsync();
+        var result = await service.PublishAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(PublishOutcome.Succeeded, result.Outcome);
         await previewOrchestrator.Received(1).StopPreviewAsync(session.Id, Arg.Any<CancellationToken>());
@@ -76,7 +76,7 @@ public class SitePreviewOrchestratorTests
 
         var service = new DiscardService(metadataStore, gitHubRepository, bufferStore, previewOrchestrator);
 
-        var result = await service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false });
+        var result = await service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false }, TestContext.Current.CancellationToken);
 
         Assert.Equal(DiscardOutcome.Succeeded, result.Outcome);
         await previewOrchestrator.Received(1).StopPreviewAsync(session.Id, Arg.Any<CancellationToken>());
@@ -103,7 +103,7 @@ public class SitePreviewOrchestratorTests
                 BaseUrl = "http://localhost:1313",
             });
 
-        var preview = await previewOrchestrator.StartPreviewAsync(session, site, savedTipSha);
+        var preview = await previewOrchestrator.StartPreviewAsync(session, site, savedTipSha, TestContext.Current.CancellationToken);
 
         Assert.Equal(SitePreviewState.Running, preview.Status);
         await previewOrchestrator.Received(1).StartPreviewAsync(

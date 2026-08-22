@@ -48,7 +48,7 @@ public class ContentBufferServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(Array.Empty<GitHubTreeEntry>());
 
-        var item = await _service.CreateAsync(ContentTypeKind.Post, "hello-world", title: "Hello");
+        var item = await _service.CreateAsync(ContentTypeKind.Post, "hello-world", title: "Hello", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("content/posts/hello-world.md", item.Path);
         Assert.Equal(ContentTypeKind.Post, item.ContentType);
@@ -98,7 +98,7 @@ Body
                 Arg.Any<CancellationToken>())
             .Returns(new GitHubFileContent { Path = path, Content = fileContent, Sha = "blob-sha" });
 
-        var item = await _service.GetAsync(path);
+        var item = await _service.GetAsync(path, TestContext.Current.CancellationToken);
 
         Assert.NotNull(item);
         Assert.Equal("keep-me", item!.FrontMatter["legacy_custom"]);
@@ -131,14 +131,11 @@ Body
         TestHelpers.SetupActiveContext(_metadataStore, _themePackRegistry, site, session);
         _bufferStore.GetOrCreateBufferAsync(session.Id, Arg.Any<CancellationToken>()).Returns(buffer);
 
-        var updated = await _service.UpsertAsync(
-            path,
-            new Dictionary<string, object?>
-            {
-                ["title"] = "New",
-                ["legacy_custom"] = "still-here",
-            },
-            "New body");
+        var updated = await _service.UpsertAsync(path, new Dictionary<string, object?>
+        {
+            ["title"] = "New",
+            ["legacy_custom"] = "still-here",
+        }, "New body", TestContext.Current.CancellationToken);
 
         Assert.Equal("New", updated.FrontMatter["title"]);
         Assert.Equal("still-here", updated.FrontMatter["legacy_custom"]);

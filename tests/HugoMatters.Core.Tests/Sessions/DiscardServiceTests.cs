@@ -30,7 +30,7 @@ public class DiscardServiceTests
         var session = TestHelpers.CreateActiveSession(site.Id, hasUnsavedLocalEdits: true);
         SetupContext(site, session);
 
-        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false });
+        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false }, TestContext.Current.CancellationToken);
 
         Assert.Equal(DiscardOutcome.ConfirmationRequired, result.Outcome);
         await _gitHubRepository.DidNotReceive().ClosePullRequestAsync(
@@ -48,7 +48,7 @@ public class DiscardServiceTests
         var session = TestHelpers.CreateActiveSession(site.Id, hasUnsavedLocalEdits: true);
         SetupContext(site, session);
 
-        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = true });
+        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = true }, TestContext.Current.CancellationToken);
 
         Assert.Equal(DiscardOutcome.Succeeded, result.Outcome);
         Assert.Equal(SessionState.Ended, session.State);
@@ -68,7 +68,7 @@ public class DiscardServiceTests
         var session = TestHelpers.CreateActiveSession(site.Id);
         SetupContext(site, session);
 
-        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false });
+        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false }, TestContext.Current.CancellationToken);
 
         Assert.Equal(DiscardOutcome.Succeeded, result.Outcome);
     }
@@ -87,7 +87,7 @@ public class DiscardServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("GitHub unavailable")));
 
-        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false });
+        var result = await _service.DiscardAsync(new DiscardRequest { ConfirmDiscardUnsaved = false }, TestContext.Current.CancellationToken);
 
         Assert.Equal(DiscardOutcome.Failed, result.Outcome);
         Assert.Equal(SessionState.Active, session.State);

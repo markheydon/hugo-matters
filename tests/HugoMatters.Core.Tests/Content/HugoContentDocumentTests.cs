@@ -5,7 +5,7 @@ namespace HugoMatters.Core.Tests.Content;
 
 public class HugoContentDocumentTests
 {
-  private const string SampleContent = """
+    private const string SampleContent = """
 ---
 title: Hello World
 date: 2024-01-15T10:30:00Z
