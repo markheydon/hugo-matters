@@ -6,7 +6,7 @@
 set -euo pipefail
 
 DEV_CERT_TRUST="${HOME}/.aspnet/dev-certs/trust"
-MARKER="# hugo-matter: ASP.NET HTTPS dev certificate trust"
+MARKER="# hugo-matters: ASP.NET HTTPS dev certificate trust"
 SSL_CERT_EXPORT='export SSL_CERT_DIR="${SSL_CERT_DIR:+${SSL_CERT_DIR}:}/usr/lib/ssl/certs:${HOME}/.aspnet/dev-certs/trust"'
 
 if dotnet dev-certs https --trust >/dev/null 2>&1; then

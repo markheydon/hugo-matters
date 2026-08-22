@@ -1,5 +1,5 @@
 {
   "appHost": {
-    "path": "src/HugoMatter.AppHost/HugoMatter.AppHost.csproj"
+    "path": "src/HugoMatters.AppHost/HugoMatters.AppHost.csproj"
   }
 }

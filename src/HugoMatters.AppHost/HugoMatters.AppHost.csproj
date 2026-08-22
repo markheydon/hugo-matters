@@ -1,0 +1,15 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.5.1">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>efeaf077-aeaf-44d7-9dc9-5da3fa8f85f7</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HugoMatters.ApiService\HugoMatters.ApiService.csproj" />
+    <ProjectReference Include="..\HugoMatters.Web\HugoMatters.Web.csproj" />
+  </ItemGroup>
+
+</Project>

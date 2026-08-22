@@ -1,0 +1,41 @@
+@namespace HugoMatters.Web.Components.Content
+
+<Select
+    Label="Spell-check language"
+    Value="@SelectedLanguage"
+    ValueChanged="OnLanguageChanged"
+    Options="@LanguageOptions" />
+
+@code {
+    [Parameter]
+    public string SelectedLanguage { get; set; } = "en";
+
+    [Parameter]
+    public EventCallback<string> SelectedLanguageChanged { get; set; }
+
+    private static readonly IReadOnlyList<Select.SelectOption> LanguageOptions = [
+        new("en", "English"),
+        new("en-US", "English (US)"),
+        new("en-GB", "English (UK)"),
+        new("de", "German"),
+        new("fr", "French"),
+        new("es", "Spanish"),
+        new("it", "Italian"),
+        new("pt", "Portuguese"),
+        new("nl", "Dutch"),
+        new("sv", "Swedish"),
+        new("da", "Danish"),
+        new("no", "Norwegian"),
+        new("fi", "Finnish"),
+        new("pl", "Polish"),
+    ];
+
+    private async Task OnLanguageChanged(string? value)
+    {
+        if (value is not null)
+        {
+            SelectedLanguage = value;
+            await SelectedLanguageChanged.InvokeAsync(value);
+        }
+    }
+}

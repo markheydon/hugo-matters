@@ -1,6 +1,10 @@
-# Hugo Matter
+# Hugo Matters
 
-Hugo Matter is a local-first CMS for solo Hugo site owners. It connects to your GitHub repository, runs editing sessions on branches with pull requests, and keeps Git as the source of truth for all content.
+> **Early idea — proceed with caution**
+>
+> Hugo Matters is an experiment in progress. There is no stable release, no guarantee it will ever ship, and the direction may change or be abandoned entirely. Treat everything here as design notes and exploratory code, not a product you can depend on.
+
+Hugo Matters is a local-first CMS for solo Hugo site owners. It connects to your GitHub repository, runs editing sessions on branches with pull requests, and keeps Git as the source of truth for all content.
 
 ## Prerequisites
 

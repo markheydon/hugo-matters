@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hugo-matter.local/contracts/theme-pack-schema.json",
-  "title": "HugoMatterThemePack",
+  "$id": "https://hugo-matters.local/contracts/theme-pack-schema.json",
+  "title": "HugoMattersThemePack",
   "type": "object",
   "required": ["id", "version", "displayName", "contentTypes"],
   "additionalProperties": false,

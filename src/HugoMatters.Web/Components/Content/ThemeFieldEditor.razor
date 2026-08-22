@@ -1,0 +1,144 @@
+@namespace HugoMatters.Web.Components.Content
+@using HugoMatters.Web.Models
+
+@if (Fields.Count == 0)
+{
+    <p class="text-sm text-slate-500">No theme fields configured for this content type.</p>
+}
+else
+{
+    <div class="space-y-4">
+        @foreach (var field in Fields)
+        {
+            @RenderField(field)
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<FieldDefinitionDto> Fields { get; set; } = [];
+
+    [Parameter]
+    public Dictionary<string, object?> FrontMatter { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<Dictionary<string, object?>> FrontMatterChanged { get; set; }
+
+    [Parameter]
+    public string SpellCheckLanguage { get; set; } = "en";
+
+    private RenderFragment RenderField(FieldDefinitionDto field) => __builder =>
+    {
+        var widget = field.EditorWidget ?? InferWidget(field);
+        var currentValue = GetFieldString(field.Key);
+
+        switch (widget)
+        {
+            case "toggle":
+                __builder.OpenElement(0, "label");
+                __builder.AddAttribute(1, "class", "flex items-center gap-2 text-sm text-slate-700");
+                __builder.OpenElement(2, "input");
+                __builder.AddAttribute(3, "type", "checkbox");
+                __builder.AddAttribute(4, "checked", currentValue == "true");
+                __builder.AddAttribute(5, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => UpdateField(field.Key, e.Value?.ToString() == "true")));
+                __builder.CloseElement();
+                __builder.AddContent(6, field.Label);
+                __builder.CloseElement();
+                break;
+
+            case "textarea":
+            case "markdown":
+                __builder.OpenComponent<TextField>(5);
+                __builder.AddAttribute(6, "Label", field.Label);
+                __builder.AddAttribute(7, "Multiline", true);
+                __builder.AddAttribute(8, "Rows", 6);
+                __builder.AddAttribute(9, "Required", field.Required);
+                __builder.AddAttribute(10, "Value", currentValue);
+                __builder.AddAttribute(11, "SpellCheck", true);
+                __builder.AddAttribute(12, "Lang", SpellCheckLanguage);
+                __builder.AddAttribute(13, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => UpdateField(field.Key, v)));
+                __builder.CloseComponent();
+                break;
+
+            case "select":
+                var options = field.Options?.Select(o => new Select.SelectOption(o, o)).ToList()
+                    ?? new List<Select.SelectOption>();
+                __builder.OpenComponent<Select>(14);
+                __builder.AddAttribute(15, "Label", field.Label);
+                __builder.AddAttribute(16, "Required", field.Required);
+                __builder.AddAttribute(17, "Value", currentValue);
+                __builder.AddAttribute(18, "Options", options);
+                __builder.AddAttribute(19, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => UpdateField(field.Key, v)));
+                __builder.CloseComponent();
+                break;
+
+            case "date":
+                __builder.OpenComponent<TextField>(20);
+                __builder.AddAttribute(21, "Label", field.Label);
+                __builder.AddAttribute(22, "InputType", "date");
+                __builder.AddAttribute(23, "Required", field.Required);
+                __builder.AddAttribute(24, "Value", currentValue);
+                __builder.AddAttribute(25, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => UpdateField(field.Key, v)));
+                __builder.CloseComponent();
+                break;
+
+            default:
+                __builder.OpenComponent<TextField>(26);
+                __builder.AddAttribute(27, "Label", field.Label);
+                __builder.AddAttribute(28, "Required", field.Required);
+                __builder.AddAttribute(29, "Value", currentValue);
+                __builder.AddAttribute(30, "SpellCheck", true);
+                __builder.AddAttribute(31, "Lang", SpellCheckLanguage);
+                __builder.AddAttribute(32, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => UpdateField(field.Key, v)));
+                __builder.CloseComponent();
+                break;
+        }
+    };
+
+    private static string InferWidget(FieldDefinitionDto field)
+    {
+        if (field.DataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
+        {
+            return "toggle";
+        }
+
+        if (field.DataType.Equals("markdown", StringComparison.OrdinalIgnoreCase))
+        {
+            return "markdown";
+        }
+
+        if (field.Options is { Count: > 0 })
+        {
+            return "select";
+        }
+
+        if (field.DataType.Equals("datetime", StringComparison.OrdinalIgnoreCase))
+        {
+            return "date";
+        }
+
+        return field.EditorWidget ?? "text";
+    }
+
+    private string GetFieldString(string key)
+    {
+        if (!FrontMatter.TryGetValue(key, out var value) || value is null)
+        {
+            return "";
+        }
+
+        return value switch
+        {
+            string s => s,
+            bool b => b ? "true" : "false",
+            _ => value.ToString() ?? "",
+        };
+    }
+
+    private async Task UpdateField(string key, object? value)
+    {
+        FrontMatter[key] = value;
+        await FrontMatterChanged.InvokeAsync(FrontMatter);
+    }
+}

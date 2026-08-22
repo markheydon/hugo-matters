@@ -1,0 +1,175 @@
+{
+  "id": "hugo-profile",
+  "version": "1.0.0",
+  "displayName": "Hugo Profile",
+  "compatibility": {
+    "themeNames": ["hugo-profile"],
+    "requiredFiles": [
+      "hugo.yaml",
+      "hugo.toml",
+      "themes/hugo-profile"
+    ]
+  },
+  "pathConventions": {
+    "postsDirectory": "content/posts",
+    "pagesDirectory": "content"
+  },
+  "contentTypes": [
+    {
+      "id": "post",
+      "label": "Post",
+      "defaults": {
+        "draft": true
+      },
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "dataType": "string",
+          "required": true,
+          "editorWidget": "text"
+        },
+        {
+          "key": "date",
+          "label": "Date",
+          "dataType": "datetime",
+          "editorWidget": "date"
+        },
+        {
+          "key": "draft",
+          "label": "Draft",
+          "dataType": "boolean",
+          "default": true,
+          "editorWidget": "toggle"
+        },
+        {
+          "key": "author",
+          "label": "Author",
+          "dataType": "string",
+          "editorWidget": "text"
+        },
+        {
+          "key": "tags",
+          "label": "Tags",
+          "dataType": "stringList",
+          "editorWidget": "tags"
+        },
+        {
+          "key": "image",
+          "label": "Featured image",
+          "dataType": "string",
+          "editorWidget": "text"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "dataType": "string",
+          "editorWidget": "textarea"
+        },
+        {
+          "key": "toc",
+          "label": "Table of contents",
+          "dataType": "boolean",
+          "default": false,
+          "editorWidget": "toggle"
+        },
+        {
+          "key": "mathjax",
+          "label": "Enable MathJax",
+          "dataType": "boolean",
+          "default": false,
+          "editorWidget": "toggle"
+        }
+      ]
+    },
+    {
+      "id": "page",
+      "label": "Page",
+      "defaults": {
+        "draft": true
+      },
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "dataType": "string",
+          "required": true,
+          "editorWidget": "text"
+        },
+        {
+          "key": "date",
+          "label": "Date",
+          "dataType": "datetime",
+          "editorWidget": "date"
+        },
+        {
+          "key": "draft",
+          "label": "Draft",
+          "dataType": "boolean",
+          "default": true,
+          "editorWidget": "toggle"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "dataType": "string",
+          "editorWidget": "textarea"
+        },
+        {
+          "key": "toc",
+          "label": "Table of contents",
+          "dataType": "boolean",
+          "default": false,
+          "editorWidget": "toggle"
+        },
+        {
+          "key": "mathjax",
+          "label": "Enable MathJax",
+          "dataType": "boolean",
+          "default": false,
+          "editorWidget": "toggle"
+        }
+      ]
+    }
+  ],
+  "siteConfigFields": [
+    {
+      "key": "title",
+      "label": "Site title",
+      "dataType": "string",
+      "required": true,
+      "editorWidget": "text"
+    },
+    {
+      "key": "baseURL",
+      "label": "Base URL",
+      "dataType": "string",
+      "editorWidget": "text"
+    },
+    {
+      "key": "languageCode",
+      "label": "Language code",
+      "dataType": "string",
+      "default": "en-us",
+      "editorWidget": "text"
+    },
+    {
+      "key": "params.hero.title",
+      "label": "Hero title",
+      "dataType": "string",
+      "editorWidget": "text"
+    },
+    {
+      "key": "params.hero.subtitle",
+      "label": "Hero subtitle",
+      "dataType": "string",
+      "editorWidget": "text"
+    },
+    {
+      "key": "params.hero.intro",
+      "label": "Hero intro",
+      "dataType": "string",
+      "editorWidget": "textarea"
+    }
+  ]
+}

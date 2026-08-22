@@ -24,7 +24,7 @@
     "**/obj/**": true,
     "**/.vs/**": true
   },
-  "dotnet.defaultSolution": "HugoMatter.slnx",
+  "dotnet.defaultSolution": "HugoMatters.slnx",
   "dotnet.formatting.organizeImportsOnFormat": true,
   "editor.formatOnSave": true,
   "[csharp]": {

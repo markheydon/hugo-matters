@@ -1,4 +1,4 @@
-# Data Model: Hugo Matter CMS
+# Data Model: Hugo Matters CMS
 
 **Feature**: `001-hugo-matter-cms`  
 **Date**: 2026-08-21
@@ -58,7 +58,7 @@ Unit of editorial work mapped to one branch + one open PR.
 |-------|------|-------|
 | Id | GUID / string | Local primary key |
 | SiteId | FK | Connected site |
-| BranchName | string | e.g. `hugo-matter/session-{shortId}` |
+| BranchName | string | e.g. `hugo-matters/session-{shortId}` |
 | PullRequestNumber | int | Open PR against default branch |
 | PullRequestUrl | string | |
 | BaseBranch | string | Repo default branch at session start |

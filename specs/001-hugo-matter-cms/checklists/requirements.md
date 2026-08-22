@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Hugo Matter CMS
+# Specification Quality Checklist: Hugo Matters CMS
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-21

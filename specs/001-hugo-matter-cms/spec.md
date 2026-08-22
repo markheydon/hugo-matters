@@ -1,4 +1,4 @@
-# Feature Specification: Hugo Matter CMS
+# Feature Specification: Hugo Matters CMS
 
 **Feature Branch**: `001-hugo-matter-cms`
 
@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Build Hugo Matter: a CMS that lets a solo site owner edit their Hugo website without hand-editing files in their repository."
+**Input**: User description: "Build Hugo Matters: a CMS that lets a solo site owner edit their Hugo website without hand-editing files in their repository."
 
 ## Clarifications
 
@@ -15,11 +15,11 @@
 - Q: When the owner discards an editing session, what should happen to that session’s open pull request and branch? → A: Close the pull request without merging and delete the session branch
 - Q: If the owner tries to publish an editing session that has no content changes relative to the main branch, what should happen? → A: Block publish when there are no changes vs main; show a clear message
 - Q: If the owner discards a session while they still have unsaved local edits, what should happen? → A: Warn that unsaved edits will be lost; discard only after explicit confirmation
-- Q: If publish cannot merge because the main branch is protected or otherwise blocked (for example required reviews or checks), what should Hugo Matter do? → A: Fail publish with a clear explanation; leave the session and open pull request intact for the owner to resolve
+- Q: If publish cannot merge because the main branch is protected or otherwise blocked (for example required reviews or checks), what should Hugo Matters do? → A: Fail publish with a clear explanation; leave the session and open pull request intact for the owner to resolve
 - Q: Should the real Hugo site preview include unsaved local edits, or only content already saved to the session pull request? → A: Site preview uses only content already saved to the session pull request; unsaved edits are omitted until saved
 - Q: If the owner tries to publish while they still have unsaved local edits, what should happen? → A: Block publish until unsaved edits are saved or reverted; explain why
-- Q: After a successful publish (merge into main), should Hugo Matter delete the session branch? → A: After successful merge, delete the session branch (session ends cleanly)
-- Q: If the main branch has moved ahead and the session can no longer merge cleanly (conflict), what should Hugo Matter do? → A: Fail publish with a clear conflict explanation; leave session and open pull request intact for the owner to resolve
+- Q: After a successful publish (merge into main), should Hugo Matters delete the session branch? → A: After successful merge, delete the session branch (session ends cleanly)
+- Q: If the main branch has moved ahead and the session can no longer merge cleanly (conflict), what should Hugo Matters do? → A: Fail publish with a clear conflict explanation; leave session and open pull request intact for the owner to resolve
 - Q: When the spec says publishing merges into the site’s “main” branch, which branch should that be if the repository’s default branch has a different name? → A: Use the repository’s configured default branch as the publish/integration target (whatever it is named)
 - Q: In this initial product, can the owner delete existing posts or pages from within an editing session? → A: Yes — owners can delete posts/pages in the session; deletes save to the session like other edits
 
@@ -27,7 +27,7 @@
 
 ### User Story 1 - Connect a Hugo site repository (Priority: P1)
 
-A solo site owner authorizes Hugo Matter to access their Hugo site's GitHub-hosted repository (public or private). After a successful connection, they can start editing without manually cloning or hand-editing files in the repository.
+A solo site owner authorizes Hugo Matters to access their Hugo site's GitHub-hosted repository (public or private). After a successful connection, they can start editing without manually cloning or hand-editing files in the repository.
 
 **Why this priority**: Nothing else works until the product can securely reach the owner's content repository under the owner's control.
 
@@ -262,8 +262,8 @@ The product's connect → session → edit → preview → publish experience is
 - The day-one target site uses the Hugo Profile theme (or is compatible with the Hugo Profile theme pack).
 - The owner already has (or can obtain) control of a GitHub-hosted Git repository containing their Hugo site content and can complete platform authorization.
 - The repository's configured default branch is the integration branch that publishing merges into (it need not be named `main`).
-- Merge conflicts with the default branch are resolved outside Hugo Matter for this initial product; the product fails publish clearly and keeps the session open.
-- After merge to the default branch, any live-site update happens through the owner's existing repository deploy/publish process; Hugo Matter does not operate hosting.
+- Merge conflicts with the default branch are resolved outside Hugo Matters for this initial product; the product fails publish clearly and keeps the session open.
+- After merge to the default branch, any live-site update happens through the owner's existing repository deploy/publish process; Hugo Matters does not operate hosting.
 - The initial product is used by one owner on one connected site; multi-site portfolios are out of scope unless later specified.
 - "Multi-language spell checking" means spell checking is available for more than one language during editing (language selection or detection details are left to planning).
 - In-editor preview is intentionally approximate and may show the live editing buffer; real Hugo site preview reflects only content saved to the session pull request.

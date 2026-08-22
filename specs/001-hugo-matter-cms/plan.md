@@ -1,4 +1,4 @@
-# Implementation Plan: Hugo Matter CMS
+# Implementation Plan: Hugo Matters CMS
 
 **Branch**: `001-hugo-matter-cms` | **Date**: 2026-08-21 | **Spec**: [spec.md](./spec.md)
 
@@ -6,7 +6,7 @@
 
 ## Summary
 
-Hugo Matter is a local-first CMS for a solo owner to connect one GitHub-hosted Hugo site, edit posts/pages through a theme-pack–aware UI (Hugo Profile first), save as commits on a session branch/PR, preview with real Hugo in an isolated container, and publish by merging into the repository’s default branch (or discard by closing without merge).
+Hugo Matters is a local-first CMS for a solo owner to connect one GitHub-hosted Hugo site, edit posts/pages through a theme-pack–aware UI (Hugo Profile first), save as commits on a session branch/PR, preview with real Hugo in an isolated container, and publish by merging into the repository’s default branch (or discard by closing without merge).
 
 Technical approach: extend the existing .NET 10 Aspire solution (Blazor Server Web + ApiService + ServiceDefaults + AppHost). Domain/session/theme-pack logic lives in reusable class libraries; GitHub App is the repository access model; only connection/session metadata is persisted locally; Git remains source of truth. UI uses Tailwind CSS + Lucide Icons with small shared Blazor primitives (no MudBlazor/Fluent). Tests: xUnit v3 + NSubstitute + built-in Assert; Playwright for a thin E2E smoke path. AppHost modelling is not tested.
 
@@ -98,26 +98,26 @@ specs/001-hugo-matter-cms/
 ### Source Code (repository root)
 
 ```text
-HugoMatter.slnx
+HugoMatters.slnx
 aspire.config.json
 src/
-├── HugoMatter.AppHost/           # Aspire orchestration (Web + ApiService); not unit-tested
-├── HugoMatter.ServiceDefaults/   # Shared Aspire defaults / health / OTel
-├── HugoMatter.Web/               # Blazor Server UI (Tailwind, Lucide, editor, preview panes)
+├── HugoMatters.AppHost/           # Aspire orchestration (Web + ApiService); not unit-tested
+├── HugoMatters.ServiceDefaults/   # Shared Aspire defaults / health / OTel
+├── HugoMatters.Web/               # Blazor Server UI (Tailwind, Lucide, editor, preview panes)
 │   ├── Components/
 │   ├── wwwroot/                  # Built CSS, icons, static assets
 │   ├── package.json              # Tailwind CLI / Lucide tooling (as needed)
 │   └── ...
-├── HugoMatter.ApiService/        # HTTP API: connect, session, content, preview, publish
-├── HugoMatter.Core/              # Domain: session lifecycle, content model, frontmatter I/O,
+├── HugoMatters.ApiService/        # HTTP API: connect, session, content, preview, publish
+├── HugoMatters.Core/              # Domain: session lifecycle, content model, frontmatter I/O,
 │                                 # theme-pack interfaces, preview port, GitHub port
-├── HugoMatter.Infrastructure/    # GitHub App client, local metadata store, Docker/Podman preview
-└── HugoMatter.ThemePacks/        # Pack registry + Hugo Profile pack (schema, defaults, mapping)
+├── HugoMatters.Infrastructure/    # GitHub App client, local metadata store, Docker/Podman preview
+└── HugoMatters.ThemePacks/        # Pack registry + Hugo Profile pack (schema, defaults, mapping)
 
 tests/
-├── HugoMatter.Core.Tests/        # xUnit v3 unit tests (session, frontmatter, theme packs)
-├── HugoMatter.ApiService.Tests/  # API/handler tests with NSubstitute doubles
-└── HugoMatter.E2E.Tests/         # Playwright high-value journeys (optional early; required for smoke)
+├── HugoMatters.Core.Tests/        # xUnit v3 unit tests (session, frontmatter, theme packs)
+├── HugoMatters.ApiService.Tests/  # API/handler tests with NSubstitute doubles
+└── HugoMatters.E2E.Tests/         # Playwright high-value journeys (optional early; required for smoke)
 ```
 
 **Structure Decision**: Keep the existing Aspire four-project shape and add **Core**, **Infrastructure**, and **ThemePacks** class libraries plus test projects. ApiService hosts application endpoints and orchestrates GitHub + preview via Core ports; Web remains a Blazor Server client of the API (Aspire service discovery). No additional long-running Aspire resources beyond Web + ApiService for v1 (Hugo runs as on-demand containers managed by Infrastructure, not as a permanent AppHost service).

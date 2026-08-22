@@ -1,4 +1,4 @@
-# Quickstart: Hugo Matter CMS validation
+# Quickstart: Hugo Matters CMS validation
 
 **Feature**: `001-hugo-matter-cms`  
 **Purpose**: Runnable validation guide for the connect → edit → save → preview → publish loop. Implementation details live in `tasks.md` / code; contracts and data model are linked, not duplicated.
@@ -6,7 +6,7 @@
 ## Prerequisites
 
 - .NET 10 SDK
-- Node.js (for Tailwind CSS build in `HugoMatter.Web`)
+- Node.js (for Tailwind CSS build in `HugoMatters.Web`)
 - Docker **or** Podman (for real Hugo site preview)
 - GitHub account with a Hugo **Profile**-based repository you control (public or private)
 - GitHub App credentials configured per [contracts/github-app-setup.md](./contracts/github-app-setup.md)
@@ -15,10 +15,10 @@
 
 ```bash
 # From repo root
-cd src/HugoMatter.Web && npm install && npm run build:css && cd ../..
+cd src/HugoMatters.Web && npm install && npm run build:css && cd ../..
 
 # Configure GitHub App secrets (see contracts/github-app-setup.md)
-cd src/HugoMatter.ApiService
+cd src/HugoMatters.ApiService
 dotnet user-secrets set "GitHubApp:AppId" "<app-id>"
 # ... ClientId, ClientSecret, PrivateKeyPem
 cd ../..
@@ -28,7 +28,7 @@ cd ../..
 
 ```bash
 aspire start
-# or: dotnet run --project src/HugoMatter.AppHost
+# or: dotnet run --project src/HugoMatters.AppHost
 ```
 
 Open the Web external endpoint from the Aspire dashboard.
@@ -90,10 +90,10 @@ Contracts: `POST /api/connection/authorize`, `GET /api/connection` — [api-open
 ### 7) Automated checks (once implemented)
 
 ```bash
-dotnet test tests/HugoMatter.Core.Tests
-dotnet test tests/HugoMatter.ApiService.Tests
+dotnet test tests/HugoMatters.Core.Tests
+dotnet test tests/HugoMatters.ApiService.Tests
 # Thin Playwright smoke when available:
-dotnet test tests/HugoMatter.E2E.Tests
+dotnet test tests/HugoMatters.E2E.Tests
 ```
 
 **Priority coverage**: session/PR lifecycle, theme-pack application, preview orchestration boundaries. Do **not** require AppHost modelling tests.

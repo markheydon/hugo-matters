@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="src/HugoMatters.ApiService/HugoMatters.ApiService.csproj" />
+  <Project Path="src/HugoMatters.AppHost/HugoMatters.AppHost.csproj" />
+  <Project Path="src/HugoMatters.Core/HugoMatters.Core.csproj" />
+  <Project Path="src/HugoMatters.Infrastructure/HugoMatters.Infrastructure.csproj" />
+  <Project Path="src/HugoMatters.ServiceDefaults/HugoMatters.ServiceDefaults.csproj" />
+  <Project Path="src/HugoMatters.ThemePacks/HugoMatters.ThemePacks.csproj" />
+  <Project Path="src/HugoMatters.Web/HugoMatters.Web.csproj" />
+  <Project Path="tests/HugoMatters.ApiService.Tests/HugoMatters.ApiService.Tests.csproj" />
+  <Project Path="tests/HugoMatters.Core.Tests/HugoMatters.Core.Tests.csproj" />
+  <Project Path="tests/HugoMatters.E2E.Tests/HugoMatters.E2E.Tests.csproj" />
+</Solution>

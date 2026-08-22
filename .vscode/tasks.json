@@ -8,7 +8,7 @@
       "args": [
         "start",
         "--apphost",
-        "${workspaceFolder}/src/HugoMatter.AppHost/HugoMatter.AppHost.csproj"
+        "${workspaceFolder}/src/HugoMatters.AppHost/HugoMatters.AppHost.csproj"
       ],
       "isBackground": true,
       "group": "build",
@@ -25,7 +25,7 @@
         "start",
         "--isolated",
         "--apphost",
-        "${workspaceFolder}/src/HugoMatter.AppHost/HugoMatter.AppHost.csproj"
+        "${workspaceFolder}/src/HugoMatters.AppHost/HugoMatters.AppHost.csproj"
       ],
       "isBackground": true,
       "group": "build",
@@ -66,7 +66,7 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/HugoMatter.slnx",
+        "${workspaceFolder}/HugoMatters.slnx",
         "--configuration",
         "Debug"
       ],
@@ -86,7 +86,7 @@
       "type": "process",
       "args": [
         "test",
-        "${workspaceFolder}/HugoMatter.slnx"
+        "${workspaceFolder}/HugoMatters.slnx"
       ],
       "problemMatcher": "$msCompile",
       "group": {
@@ -105,7 +105,7 @@
       "args": [
         "watch",
         "--project",
-        "${workspaceFolder}/src/HugoMatter.Web/HugoMatter.Web.csproj",
+        "${workspaceFolder}/src/HugoMatters.Web/HugoMatters.Web.csproj",
         "run"
       ],
       "problemMatcher": [
@@ -139,7 +139,7 @@
       "args": [
         "watch",
         "--project",
-        "${workspaceFolder}/src/HugoMatter.Web/HugoMatter.Web.csproj",
+        "${workspaceFolder}/src/HugoMatters.Web/HugoMatters.Web.csproj",
         "run"
       ],
       "options": {
@@ -177,7 +177,7 @@
       "type": "process",
       "args": [
         "clean",
-        "${workspaceFolder}/HugoMatter.slnx"
+        "${workspaceFolder}/HugoMatters.slnx"
       ],
       "problemMatcher": "$msCompile",
       "group": "build",
