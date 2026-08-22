@@ -75,5 +75,18 @@ public static class ConnectionEndpoints
         {
             return ApiResults.Error("unauthorized", ex.Message, StatusCodes.Status401Unauthorized);
         }
+        catch (InvalidOperationException ex) when (IsGitHubAppNotConfigured(ex))
+        {
+            return ApiResults.Error(
+                "github_app_not_configured",
+                "GitHub App is not configured. Configure App credentials in ApiService user secrets.",
+                StatusCodes.Status503ServiceUnavailable);
+        }
     }
+
+    private static bool IsGitHubAppNotConfigured(InvalidOperationException ex) =>
+        ex.Message.Contains("GitHub App", StringComparison.OrdinalIgnoreCase)
+            && (
+                ex.Message.Contains("not configured", StringComparison.OrdinalIgnoreCase)
+                || ex.Message.Contains("private key file was not found", StringComparison.OrdinalIgnoreCase));
 }

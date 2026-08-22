@@ -18,6 +18,9 @@ namespace HugoMatters.ApiService.Tests;
 /// </summary>
 public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
 {
+    /// <summary>When false, GitHub App credentials are omitted from test configuration.</summary>
+    public bool IncludeGitHubAppClientId { get; init; } = true;
+
     private readonly string _dataDirectory = Path.Combine(
         Path.GetTempPath(),
         "hugo-matters-tests",
@@ -40,11 +43,17 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureAppConfiguration(config =>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
+            var settings = new Dictionary<string, string?>
             {
                 ["HugoMatters:DataDirectory"] = _dataDirectory,
-                ["GitHubApp:ClientId"] = "test-client-id",
-            });
+            };
+
+            if (IncludeGitHubAppClientId)
+            {
+                settings["GitHubApp:ClientId"] = "test-client-id";
+            }
+
+            config.AddInMemoryCollection(settings);
         });
 
         builder.ConfigureTestServices(services =>

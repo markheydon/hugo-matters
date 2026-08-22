@@ -92,6 +92,30 @@ public sealed class ConnectionEndpointsTests
     }
 
     /// <summary>
+    /// POST /api/connection/authorize returns a clear error when GitHub App is not configured.
+    /// </summary>
+    [Fact]
+    public async Task Authorize_ReturnsGitHubAppNotConfigured_WhenCredentialsMissing()
+    {
+        await using var factory = new HugoMattersApiFactory { IncludeGitHubAppClientId = false };
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/connection/authorize",
+            new AuthorizeRequest { Owner = "owner", Repo = "repo" },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+
+        var error = await response.Content.ReadFromJsonAsync<ErrorBody>(
+            HugoMattersApiFactory.JsonOptions,
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.NotNull(error);
+        Assert.Equal("github_app_not_configured", error.Code);
+        Assert.Contains("GitHub App is not configured", error.Message);
+    }
+
+    /// <summary>
     /// POST /api/connection/authorize returns redirect when installation is not provided.
     /// </summary>
     [Fact]
