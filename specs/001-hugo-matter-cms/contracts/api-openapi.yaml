@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Hugo Matter API
+  title: Hugo Matters API
   version: 0.1.0
   description: |
-    Local ApiService contract for Hugo Matter CMS v1.
+    Local ApiService contract for Hugo Matters CMS v1.
     Web (Blazor Server) is the primary client via Aspire service discovery.
 servers:
   - url: https://apiservice

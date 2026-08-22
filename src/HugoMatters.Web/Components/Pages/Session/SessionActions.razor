@@ -1,0 +1,156 @@
+@namespace HugoMatters.Web.Components.Pages.Session
+@rendermode InteractiveServer
+@inject HugoMattersApiClient Api
+
+<div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h3 class="text-sm font-semibold text-slate-900">Session actions</h3>
+    <p class="mt-1 text-sm text-slate-600">Publish merges your pull request, or discard closes it without merging.</p>
+
+    <div class="mt-4">
+    <Banner
+        Variant="@resultVariant"
+        Message="@resultMessage"
+        IsVisible="@(resultMessage is not null)"
+        IsVisibleChanged="@((bool v) => { if (!v) resultMessage = null; })" />
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-3">
+        <Button IconName="upload" OnClick="Publish" Loading="@publishing" Disabled="@(Session.State != "Active")">
+            Publish
+        </Button>
+        <Button Variant="Button.ButtonVariant.Danger" IconName="trash" OnClick="RequestDiscard" Loading="@discarding" Disabled="@(Session.State != "Active")">
+            Discard session
+        </Button>
+        <Button Variant="Button.ButtonVariant.Secondary" IconName="save" OnClick="Save" Loading="@saving" Disabled="@(Session.State != "Active")">
+            Save to PR
+        </Button>
+    </div>
+</div>
+
+<DiscardConfirmDialog
+    IsOpen="@showDiscardDialog"
+    IsOpenChanged="@((bool v) => showDiscardDialog = v)"
+    Loading="@discarding"
+    OnConfirm="ConfirmDiscard" />
+
+@code {
+    [Parameter, EditorRequired]
+    public EditingSessionDto Session { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback OnSessionChanged { get; set; }
+
+    private bool publishing;
+    private bool discarding;
+    private bool saving;
+    private bool showDiscardDialog;
+    private string? resultMessage;
+    private Banner.BannerVariant resultVariant = Banner.BannerVariant.Info;
+
+    private async Task Save()
+    {
+        saving = true;
+        resultMessage = null;
+
+        try
+        {
+            var result = await Api.SaveSessionAsync();
+            ShowResult($"Saved commit {result.CommitSha[..7]}", Banner.BannerVariant.Success);
+            await OnSessionChanged.InvokeAsync();
+        }
+        catch (ApiException ex)
+        {
+            ShowResult(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task Publish()
+    {
+        publishing = true;
+        resultMessage = null;
+
+        try
+        {
+            var result = await Api.PublishSessionAsync();
+            if (result.Outcome == "Succeeded")
+            {
+                ShowResult(result.Message, Banner.BannerVariant.Success);
+            }
+            else
+            {
+                ShowResult(result.Message, Banner.BannerVariant.Warning);
+            }
+
+            await OnSessionChanged.InvokeAsync();
+        }
+        catch (ApiException ex)
+        {
+            ShowResult(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            publishing = false;
+        }
+    }
+
+    private void RequestDiscard()
+    {
+        if (Session.HasUnsavedLocalEdits)
+        {
+            showDiscardDialog = true;
+            return;
+        }
+
+        _ = ConfirmDiscard();
+    }
+
+    private async Task ConfirmDiscard()
+    {
+        discarding = true;
+        resultMessage = null;
+
+        try
+        {
+            var result = await Api.DiscardSessionAsync(new DiscardRequest
+            {
+                ConfirmDiscardUnsaved = Session.HasUnsavedLocalEdits || showDiscardDialog,
+            });
+
+            showDiscardDialog = false;
+
+            if (result.Outcome == "Succeeded")
+            {
+                ShowResult(result.Message, Banner.BannerVariant.Success);
+            }
+            else if (result.Outcome == "ConfirmationRequired")
+            {
+                showDiscardDialog = true;
+                ShowResult(result.Message, Banner.BannerVariant.Warning);
+            }
+            else
+            {
+                ShowResult(result.Message, Banner.BannerVariant.Error);
+            }
+
+            await OnSessionChanged.InvokeAsync();
+        }
+        catch (ApiException ex)
+        {
+            ShowResult(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            discarding = false;
+        }
+    }
+
+    private void ShowResult(string message, Banner.BannerVariant variant)
+    {
+        resultMessage = message;
+        resultVariant = variant;
+    }
+}

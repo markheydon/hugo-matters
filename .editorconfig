@@ -280,13 +280,13 @@ dotnet_diagnostic.CA1848.severity = suggestion
 #         Enforced as error on Core, Infrastructure, and ThemePacks library layers
 dotnet_diagnostic.CS1591.severity = none
 
-[src/HugoMatter.Core/**/*.cs]
+[src/HugoMatters.Core/**/*.cs]
 dotnet_diagnostic.CS1591.severity = error
 
-[src/HugoMatter.Infrastructure/**/*.cs]
+[src/HugoMatters.Infrastructure/**/*.cs]
 dotnet_diagnostic.CS1591.severity = error
 
-[src/HugoMatter.ThemePacks/**/*.cs]
+[src/HugoMatters.ThemePacks/**/*.cs]
 dotnet_diagnostic.CS1591.severity = error
 
 # ──────────────────────────────────────

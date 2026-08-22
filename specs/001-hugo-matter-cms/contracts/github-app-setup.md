@@ -1,14 +1,14 @@
 # Contract: GitHub App setup (dev)
 
 **Feature**: `001-hugo-matter-cms`  
-**Audience**: Developers running Hugo Matter locally
+**Audience**: Developers running Hugo Matters locally
 
 This is an explicit plan/setup contract for day-one GitHub App credentials. PATs are not the primary auth model.
 
 ## Create the GitHub App
 
 1. GitHub → **Settings** → **Developer settings** → **GitHub Apps** → **New GitHub App**.
-2. Suggested name: `Hugo Matter (local)` (or personal variant).
+2. Suggested name: `Hugo Matters (local)` (or personal variant).
 3. **Homepage URL**: local Web URL once known (Aspire dashboard / localhost).
 4. **Callback URL**: ApiService (or Web) OAuth callback route, e.g. `https://localhost:<api-port>/api/connection/callback` (exact path finalized in implementation; must match OpenAPI authorize flow).
 5. **Webhook**: disable for v1 local loop, or leave inactive (user-driven refresh is enough).
@@ -22,10 +22,10 @@ This is an explicit plan/setup contract for day-one GitHub App credentials. PATs
 
 ## Local secrets (never commit)
 
-Configure on `HugoMatter.ApiService` (names illustrative; lock in implementation):
+Configure on `HugoMatters.ApiService` (names illustrative; lock in implementation):
 
 ```bash
-cd src/HugoMatter.ApiService
+cd src/HugoMatters.ApiService
 dotnet user-secrets init
 dotnet user-secrets set "GitHubApp:AppId" "<app-id>"
 dotnet user-secrets set "GitHubApp:ClientId" "<client-id>"
@@ -39,7 +39,7 @@ Equivalent environment variables may be used for CI or non-user-secrets hosts. S
 
 1. Install the App on the owner’s account.
 2. Grant access to the single Hugo site repository (public or private).
-3. Complete the in-app connect flow so Hugo Matter records `installationId`, owner, and repo.
+3. Complete the in-app connect flow so Hugo Matters records `installationId`, owner, and repo.
 4. Verify least privilege: App cannot access unrelated repos the owner did not select.
 
 ## Runtime token use

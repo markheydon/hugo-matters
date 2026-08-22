@@ -1,4 +1,4 @@
-# Research: Hugo Matter CMS
+# Research: Hugo Matters CMS
 
 **Feature**: `001-hugo-matter-cms`  
 **Date**: 2026-08-21
@@ -9,7 +9,7 @@ All Technical Context unknowns from the plan are resolved below.
 
 ## 1. Solution shape and project boundaries
 
-**Decision**: Extend the existing Aspire starter (`HugoMatter.Web`, `HugoMatter.ApiService`, `ServiceDefaults`, `AppHost`) with three libraries: `HugoMatter.Core` (domain + ports), `HugoMatter.Infrastructure` (GitHub App, local metadata, container preview), `HugoMatter.ThemePacks` (Profile pack + registry).
+**Decision**: Extend the existing Aspire starter (`HugoMatters.Web`, `HugoMatters.ApiService`, `ServiceDefaults`, `AppHost`) with three libraries: `HugoMatters.Core` (domain + ports), `HugoMatters.Infrastructure` (GitHub App, local metadata, container preview), `HugoMatters.ThemePacks` (Profile pack + registry).
 
 **Rationale**: Matches constitution VIII (clear boundaries, YAGNI) and user preference for straightforward Aspire patterns. Keeps domain/theme packs reusable for a future hosted SaaS without dragging Blazor or Docker into Core.
 
@@ -50,7 +50,7 @@ All Technical Context unknowns from the plan are resolved below.
 
 **Decision**: Starting a session creates a branch from the repository’s **configured default branch** (FR-027) and opens exactly one PR against that default. Save creates commit(s) on the session branch. Publish merges the PR (merge method: merge commit or squash — prefer **squash** for cleaner history unless Profile/site docs suggest otherwise; default to GitHub’s allowed merge method, preferring squash when available). On successful merge, delete session branch and clear local session. Discard closes PR without merge, deletes branch, clears local session. Enforce one active session per connected site via local metadata + GitHub state (open PR with session label/prefix).
 
-**Branch naming**: `hugo-matter/session-{shortId}` (predictable prefix for identification and cleanup).
+**Branch naming**: `hugo-matters/session-{shortId}` (predictable prefix for identification and cleanup).
 
 **Publish guards** (spec clarifications):
 - Block if unsaved local buffer dirty
@@ -68,7 +68,7 @@ All Technical Context unknowns from the plan are resolved below.
 
 ## 4. Theme packs in-product (Hugo Profile first)
 
-**Decision**: Theme packs are versioned modules registered in `HugoMatter.ThemePacks`. Each pack supplies: pack id/version, supported content types (post/page), frontmatter field definitions (type, label, required, default), editor field mapping, optional minimal site-config field set, and a compatibility probe (e.g., detect Profile theme markers in `hugo.toml` / theme folder). Owner repos do **not** ship CMS schema files.
+**Decision**: Theme packs are versioned modules registered in `HugoMatters.ThemePacks`. Each pack supplies: pack id/version, supported content types (post/page), frontmatter field definitions (type, label, required, default), editor field mapping, optional minimal site-config field set, and a compatibility probe (e.g., detect Profile theme markers in `hugo.toml` / theme folder). Owner repos do **not** ship CMS schema files.
 
 **Pack contract**: JSON Schema documented in `contracts/theme-pack-schema.json`; Profile pack ships as embedded resources + C# binder for strong typing where useful.
 
@@ -99,7 +99,7 @@ All Technical Context unknowns from the plan are resolved below.
 
 ## 6. Tailwind CSS + Lucide on Blazor Server
 
-**Decision**: Integrate Tailwind via npm + Tailwind CLI (or standalone CLI) in `HugoMatter.Web`:
+**Decision**: Integrate Tailwind via npm + Tailwind CLI (or standalone CLI) in `HugoMatters.Web`:
 - Source: `Components/app.css` or `Styles/input.css` with `@tailwind` directives
 - Build output: `wwwroot/css/app.css` (or replace starter CSS)
 - MSBuild / npm script: `npm run build:css` on build; `npm run watch:css` for dev

@@ -1,0 +1,212 @@
+@page "/content"
+@rendermode InteractiveServer
+@inject HugoMattersApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Content</PageTitle>
+
+<div>
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Content</h1>
+            <p class="mt-1 text-sm text-slate-600">Posts and pages in your editing session.</p>
+        </div>
+        <div class="flex gap-2">
+            <Button Variant="Button.ButtonVariant.Secondary" IconName="plus" OnClick="@(() => showCreateDialog = true)">
+                New content
+            </Button>
+        </div>
+    </div>
+
+    <div class="mt-4">
+    <Banner
+        Variant="Banner.BannerVariant.Error"
+        Message="@errorMessage"
+        IsVisible="@(errorMessage is not null)"
+        IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
+    </div>
+
+    <div class="mt-4 flex gap-2">
+        @foreach (var filter in filters)
+        {
+            <button
+                type="button"
+                class="@GetFilterClasses(filter)"
+                @onclick="@(() => SetFilter(filter))">
+                @filter
+            </button>
+        }
+    </div>
+
+    @if (loading)
+    {
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading content…</span>
+        </div>
+    }
+    else if (items.Count == 0)
+    {
+        <div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+            <p class="text-sm text-slate-600">No content items yet. Create a post or page to get started.</p>
+            <Button CssClass="mt-4" IconName="plus" OnClick="@(() => showCreateDialog = true)">
+                Create content
+            </Button>
+        </div>
+    }
+    else
+    {
+        <div class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Title</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Path</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    @foreach (var item in items)
+                    {
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 text-sm font-medium text-slate-900">@item.Title</td>
+                            <td class="px-4 py-3 text-sm text-slate-600">@item.ContentType</td>
+                            <td class="px-4 py-3 text-sm text-slate-500 font-mono">@item.Path</td>
+                            <td class="px-4 py-3 text-sm">
+                                @if (item.IsDeleted)
+                                {
+                                    <span class="text-red-600">Deleted</span>
+                                }
+                                else if (item.IsNew)
+                                {
+                                    <span class="text-brand-600">New</span>
+                                }
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <Button Variant="Button.ButtonVariant.Ghost" IconName="edit" OnClick="@(() => Navigation.NavigateTo($"/content/{Uri.EscapeDataString(item.Path)}"))">
+                                    Edit
+                                </Button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Dialog Title="Create content" IsOpen="@showCreateDialog" IsOpenChanged="@((bool v) => showCreateDialog = v)" Footer="@CreateFooter">
+    <div class="space-y-4">
+        <Select Label="Content type" Value="@createType" ValueChanged="@(v => createType = v ?? "post")" Options="@contentTypeOptions" />
+        <TextField Label="Slug" Placeholder="my-new-post" Value="@createSlug" ValueChanged="@(v => createSlug = v ?? "")" Required="true" />
+        <TextField Label="Title (optional)" Value="@createTitle" ValueChanged="@(v => createTitle = v ?? "")" />
+    </div>
+</Dialog>
+
+@code {
+    private List<ContentItemSummaryDto> items = [];
+    private bool loading = true;
+    private string? errorMessage;
+    private string activeFilter = "all";
+    private bool showCreateDialog;
+    private string createType = "post";
+    private string createSlug = "";
+    private string createTitle = "";
+    private bool creating;
+
+    private static readonly string[] filters = ["all", "post", "page"];
+    private static readonly IReadOnlyList<Select.SelectOption> contentTypeOptions = [
+        new("post", "Post"),
+        new("page", "Page"),
+    ];
+
+    private RenderFragment CreateFooter => __builder =>
+    {
+        __builder.OpenComponent<Button>(0);
+        __builder.AddAttribute(1, "Variant", Button.ButtonVariant.Secondary);
+        __builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create(this, () => showCreateDialog = false));
+        __builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Cancel")));
+        __builder.CloseComponent();
+
+        __builder.OpenComponent<Button>(4);
+        __builder.AddAttribute(5, "OnClick", EventCallback.Factory.Create(this, CreateContent));
+        __builder.AddAttribute(6, "Loading", creating);
+        __builder.AddAttribute(7, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Create")));
+        __builder.CloseComponent();
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadContent();
+    }
+
+    private async Task LoadContent()
+    {
+        loading = true;
+        errorMessage = null;
+
+        try
+        {
+            items = await Api.ListContentAsync(activeFilter);
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+            items = [];
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task SetFilter(string filter)
+    {
+        activeFilter = filter;
+        await LoadContent();
+    }
+
+    private string GetFilterClasses(string filter)
+    {
+        var baseClasses = "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors";
+        return baseClasses + " " + (filter == activeFilter
+            ? "bg-brand-600 text-white"
+            : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50");
+    }
+
+    private async Task CreateContent()
+    {
+        if (string.IsNullOrWhiteSpace(createSlug))
+        {
+            errorMessage = "Slug is required.";
+            return;
+        }
+
+        creating = true;
+
+        try
+        {
+            var item = await Api.CreateContentAsync(new ContentCreateRequest
+            {
+                ContentType = createType,
+                Slug = createSlug.Trim(),
+                Title = string.IsNullOrWhiteSpace(createTitle) ? null : createTitle.Trim(),
+            });
+
+            showCreateDialog = false;
+            createSlug = "";
+            createTitle = "";
+            Navigation.NavigateTo($"/content/{Uri.EscapeDataString(item.Path)}");
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            creating = false;
+        }
+    }
+}

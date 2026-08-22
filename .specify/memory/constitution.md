@@ -13,7 +13,7 @@ Sync Impact Report:
 - Removed sections: N/A
 - Follow-up TODOs: none
 -->
-# Hugo Matter Constitution
+# Hugo Matters Constitution
 
 ## Core Principles
 
@@ -54,7 +54,7 @@ store invites drift, lost edits, and unclear publish semantics.
 ### III. Theme Knowledge Lives in the Product
 
 Theme-specific frontmatter, fields, defaults, and editing behavior MUST be
-defined as versioned theme packs inside Hugo Matter—not redeclared in each
+defined as versioned theme packs inside Hugo Matters—not redeclared in each
 owner's site repository.
 
 - The first pack is Hugo Profile.

@@ -1,8 +1,8 @@
 ---
-description: "Task list for Hugo Matter CMS feature implementation"
+description: "Task list for Hugo Matters CMS feature implementation"
 ---
 
-# Tasks: Hugo Matter CMS
+# Tasks: Hugo Matters CMS
 
 **Input**: Design documents from `/specs/001-hugo-matter-cms/`
 
@@ -39,16 +39,16 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [x] T001 Add HugoMatter.Core, HugoMatter.Infrastructure, and HugoMatter.ThemePacks class library projects to HugoMatter.slnx per plan.md
-- [x] T002 [P] Create HugoMatter.Core.Tests xUnit v3 project in tests/HugoMatter.Core.Tests/HugoMatter.Core.Tests.csproj
-- [x] T003 [P] Create HugoMatter.ApiService.Tests xUnit v3 project in tests/HugoMatter.ApiService.Tests/HugoMatter.ApiService.Tests.csproj
-- [x] T004 [P] Create HugoMatter.E2E.Tests Playwright project in tests/HugoMatter.E2E.Tests/HugoMatter.E2E.Tests.csproj
-- [x] T005 Add versionless NuGet package references (YamlDotNet, Octokit, EF Core SQLite, Markdig) to src/HugoMatter.Core/ and src/HugoMatter.Infrastructure/ per research.md (versions in Directory.Packages.props)
+- [x] T001 Add HugoMatters.Core, HugoMatters.Infrastructure, and HugoMatters.ThemePacks class library projects to HugoMatters.slnx per plan.md
+- [x] T002 [P] Create HugoMatters.Core.Tests xUnit v3 project in tests/HugoMatters.Core.Tests/HugoMatters.Core.Tests.csproj
+- [x] T003 [P] Create HugoMatters.ApiService.Tests xUnit v3 project in tests/HugoMatters.ApiService.Tests/HugoMatters.ApiService.Tests.csproj
+- [x] T004 [P] Create HugoMatters.E2E.Tests Playwright project in tests/HugoMatters.E2E.Tests/HugoMatters.E2E.Tests.csproj
+- [x] T005 Add versionless NuGet package references (YamlDotNet, Octokit, EF Core SQLite, Markdig) to src/HugoMatters.Core/ and src/HugoMatters.Infrastructure/ per research.md (versions in Directory.Packages.props)
 - [x] T006 Wire project references: Core ← Infrastructure ← ApiService; ThemePacks → Core; Web typed HttpClient → ApiService only
-- [x] T007 [P] Configure Tailwind CSS build pipeline in src/HugoMatter.Web/package.json and src/HugoMatter.Web/Styles/input.css
-- [x] T008 [P] Add Lucide Icon Blazor component in src/HugoMatter.Web/Components/Shared/Icon.razor
-- [x] T009 [P] Create shared UI primitives (Button, TextField, Select, Dialog, Banner) in src/HugoMatter.Web/Components/Shared/
-- [x] T010 Align GitHub App dev credential setup with specs/001-hugo-matter-cms/contracts/github-app-setup.md in src/HugoMatter.ApiService/Program.cs configuration
+- [x] T007 [P] Configure Tailwind CSS build pipeline in src/HugoMatters.Web/package.json and src/HugoMatters.Web/Styles/input.css
+- [x] T008 [P] Add Lucide Icon Blazor component in src/HugoMatters.Web/Components/Shared/Icon.razor
+- [x] T009 [P] Create shared UI primitives (Button, TextField, Select, Dialog, Banner) in src/HugoMatters.Web/Components/Shared/
+- [x] T010 Align GitHub App dev credential setup with specs/001-hugo-matter-cms/contracts/github-app-setup.md in src/HugoMatters.ApiService/Program.cs configuration
 
 ---
 
@@ -58,23 +58,23 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [x] T011 Define domain entities ConnectedSite, EditingSession, and ContentItem in src/HugoMatter.Core/Models/
-- [x] T012 [P] Define port interfaces IGitHubRepository, ISitePreviewOrchestrator, IThemePackRegistry, and IMetadataStore in src/HugoMatter.Core/Ports/
-- [x] T013 Implement repo-relative path validation in src/HugoMatter.Core/Security/ContentPathValidator.cs
-- [x] T014 Implement Hugo content document and YAML frontmatter round-trip in src/HugoMatter.Core/Content/HugoContentDocument.cs using YamlDotNet
-- [x] T015 Implement session state machine and publish/discard guard rules in src/HugoMatter.Core/Sessions/SessionLifecycle.cs
-- [x] T016 Implement SQLite EF Core metadata context in src/HugoMatter.Infrastructure/Persistence/HugoMatterDbContext.cs
-- [x] T017 [P] Implement ConnectedSite and EditingSession repositories in src/HugoMatter.Infrastructure/Persistence/
-- [x] T018 Implement GitHub App configuration options in src/HugoMatter.Infrastructure/GitHub/GitHubAppOptions.cs
-- [x] T019 Implement GitHub App client (installation tokens, Contents, Git, Pull Request APIs) in src/HugoMatter.Infrastructure/GitHub/GitHubAppClient.cs
-- [x] T020 Implement theme pack schema models matching specs/001-hugo-matter-cms/contracts/theme-pack-schema.json in src/HugoMatter.ThemePacks/Models/
-- [x] T021 Implement ThemePackRegistry in src/HugoMatter.ThemePacks/ThemePackRegistry.cs
-- [x] T022 Register Core and Infrastructure services in src/HugoMatter.ApiService/Program.cs
-- [x] T023 Add typed HttpClient with Aspire service discovery in src/HugoMatter.Web/Program.cs
-- [x] T024 Remove WeatherForecast sample code from src/HugoMatter.ApiService/ and src/HugoMatter.Web/
-- [x] T025 [P] Add unit tests for SessionLifecycle guards in tests/HugoMatter.Core.Tests/Sessions/SessionLifecycleTests.cs
-- [x] T026 [P] Add unit tests for frontmatter round-trip fidelity in tests/HugoMatter.Core.Tests/Content/HugoContentDocumentTests.cs
-- [x] T027 [P] Add unit tests for ContentPathValidator in tests/HugoMatter.Core.Tests/Security/ContentPathValidatorTests.cs
+- [x] T011 Define domain entities ConnectedSite, EditingSession, and ContentItem in src/HugoMatters.Core/Models/
+- [x] T012 [P] Define port interfaces IGitHubRepository, ISitePreviewOrchestrator, IThemePackRegistry, and IMetadataStore in src/HugoMatters.Core/Ports/
+- [x] T013 Implement repo-relative path validation in src/HugoMatters.Core/Security/ContentPathValidator.cs
+- [x] T014 Implement Hugo content document and YAML frontmatter round-trip in src/HugoMatters.Core/Content/HugoContentDocument.cs using YamlDotNet
+- [x] T015 Implement session state machine and publish/discard guard rules in src/HugoMatters.Core/Sessions/SessionLifecycle.cs
+- [x] T016 Implement SQLite EF Core metadata context in src/HugoMatters.Infrastructure/Persistence/HugoMattersDbContext.cs
+- [x] T017 [P] Implement ConnectedSite and EditingSession repositories in src/HugoMatters.Infrastructure/Persistence/
+- [x] T018 Implement GitHub App configuration options in src/HugoMatters.Infrastructure/GitHub/GitHubAppOptions.cs
+- [x] T019 Implement GitHub App client (installation tokens, Contents, Git, Pull Request APIs) in src/HugoMatters.Infrastructure/GitHub/GitHubAppClient.cs
+- [x] T020 Implement theme pack schema models matching specs/001-hugo-matter-cms/contracts/theme-pack-schema.json in src/HugoMatters.ThemePacks/Models/
+- [x] T021 Implement ThemePackRegistry in src/HugoMatters.ThemePacks/ThemePackRegistry.cs
+- [x] T022 Register Core and Infrastructure services in src/HugoMatters.ApiService/Program.cs
+- [x] T023 Add typed HttpClient with Aspire service discovery in src/HugoMatters.Web/Program.cs
+- [x] T024 Remove WeatherForecast sample code from src/HugoMatters.ApiService/ and src/HugoMatters.Web/
+- [x] T025 [P] Add unit tests for SessionLifecycle guards in tests/HugoMatters.Core.Tests/Sessions/SessionLifecycleTests.cs
+- [x] T026 [P] Add unit tests for frontmatter round-trip fidelity in tests/HugoMatters.Core.Tests/Content/HugoContentDocumentTests.cs
+- [x] T027 [P] Add unit tests for ContentPathValidator in tests/HugoMatters.Core.Tests/Security/ContentPathValidatorTests.cs
 
 **Checkpoint**: Foundation ready — user story implementation can now begin in parallel
 
@@ -82,19 +82,19 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ## Phase 3: User Story 1 - Connect a Hugo site repository (Priority: P1) 🎯 MVP
 
-**Goal**: Owner authorizes Hugo Matter via GitHub App and sees their Hugo site as connected
+**Goal**: Owner authorizes Hugo Matters via GitHub App and sees their Hugo site as connected
 
 **Independent Test**: Owner with a qualifying Hugo repository completes authorization and sees the site connected; without connection, editing sessions cannot start
 
 ### Implementation for User Story 1
 
-- [x] T028 [US1] Implement connection domain service in src/HugoMatter.Core/Connection/ConnectionService.cs
-- [x] T029 [US1] Implement GET/DELETE /api/connection and POST /api/connection/authorize in src/HugoMatter.ApiService/Endpoints/ConnectionEndpoints.cs per specs/001-hugo-matter-cms/contracts/api-openapi.yaml
-- [x] T030 [US1] Implement GitHub App OAuth/install binding handler in src/HugoMatter.Infrastructure/GitHub/GitHubConnectionHandler.cs
-- [x] T031 [US1] Build Connect repository UI flow in src/HugoMatter.Web/Components/Pages/Connect.razor
-- [x] T032 [US1] Add connected site status and default branch display in src/HugoMatter.Web/Components/Pages/Home.razor
-- [x] T033 [US1] Handle revoked or lost installation authorization with safe failure in src/HugoMatter.Infrastructure/GitHub/GitHubAppClient.cs
-- [x] T034 [P] [US1] Add API handler tests for connection endpoints in tests/HugoMatter.ApiService.Tests/Connection/ConnectionEndpointsTests.cs
+- [x] T028 [US1] Implement connection domain service in src/HugoMatters.Core/Connection/ConnectionService.cs
+- [x] T029 [US1] Implement GET/DELETE /api/connection and POST /api/connection/authorize in src/HugoMatters.ApiService/Endpoints/ConnectionEndpoints.cs per specs/001-hugo-matter-cms/contracts/api-openapi.yaml
+- [x] T030 [US1] Implement GitHub App OAuth/install binding handler in src/HugoMatters.Infrastructure/GitHub/GitHubConnectionHandler.cs
+- [x] T031 [US1] Build Connect repository UI flow in src/HugoMatters.Web/Components/Pages/Connect.razor
+- [x] T032 [US1] Add connected site status and default branch display in src/HugoMatters.Web/Components/Pages/Home.razor
+- [x] T033 [US1] Handle revoked or lost installation authorization with safe failure in src/HugoMatters.Infrastructure/GitHub/GitHubAppClient.cs
+- [x] T034 [P] [US1] Add API handler tests for connection endpoints in tests/HugoMatters.ApiService.Tests/Connection/ConnectionEndpointsTests.cs
 
 **Checkpoint**: User Story 1 fully functional — owner can connect and disconnect a site
 
@@ -108,13 +108,13 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 2
 
-- [x] T035 [US2] Implement session creation service (branch + PR) in src/HugoMatter.Core/Sessions/SessionService.cs
-- [x] T036 [US2] Implement GET/POST /api/session in src/HugoMatter.ApiService/Endpoints/SessionEndpoints.cs per specs/001-hugo-matter-cms/contracts/api-openapi.yaml
-- [x] T037 [US2] Enforce one Active session per ConnectedSite in src/HugoMatter.Infrastructure/Persistence/SessionRepository.cs
-- [x] T038 [US2] Build Start editing session UI in src/HugoMatter.Web/Components/Pages/Session.razor
-- [x] T039 [US2] Implement resume-existing-session behavior on return visits in src/HugoMatter.Web/Components/Pages/Session.razor
-- [x] T040 [P] [US2] Add unit tests for single-session enforcement in tests/HugoMatter.Core.Tests/Sessions/SessionServiceTests.cs
-- [x] T041 [P] [US2] Add API tests for session start conflict (409) in tests/HugoMatter.ApiService.Tests/Session/SessionEndpointsTests.cs
+- [x] T035 [US2] Implement session creation service (branch + PR) in src/HugoMatters.Core/Sessions/SessionService.cs
+- [x] T036 [US2] Implement GET/POST /api/session in src/HugoMatters.ApiService/Endpoints/SessionEndpoints.cs per specs/001-hugo-matter-cms/contracts/api-openapi.yaml
+- [x] T037 [US2] Enforce one Active session per ConnectedSite in src/HugoMatters.Infrastructure/Persistence/SessionRepository.cs
+- [x] T038 [US2] Build Start editing session UI in src/HugoMatters.Web/Components/Pages/Session.razor
+- [x] T039 [US2] Implement resume-existing-session behavior on return visits in src/HugoMatters.Web/Components/Pages/Session.razor
+- [x] T040 [P] [US2] Add unit tests for single-session enforcement in tests/HugoMatters.Core.Tests/Sessions/SessionServiceTests.cs
+- [x] T041 [P] [US2] Add API tests for session start conflict (409) in tests/HugoMatters.ApiService.Tests/Session/SessionEndpointsTests.cs
 
 **Checkpoint**: User Story 2 fully functional — one session per site with branch + PR
 
@@ -128,16 +128,16 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 3
 
-- [x] T042 [P] [US3] Ship Hugo Profile pack definition as embedded resource in src/HugoMatter.ThemePacks/Packs/hugo-profile.json
-- [x] T043 [US3] Implement Profile pack binder and compatibility probe in src/HugoMatter.ThemePacks/Packs/HugoProfileThemePack.cs
-- [x] T044 [US3] Implement in-session content buffer service in src/HugoMatter.Core/Content/ContentBufferService.cs
-- [x] T045 [US3] Implement GET/POST /api/content and GET/PUT/DELETE /api/content/{path} in src/HugoMatter.ApiService/Endpoints/ContentEndpoints.cs
-- [x] T046 [US3] Implement GET /api/theme-packs and GET /api/theme-packs/{id} in src/HugoMatter.ApiService/Endpoints/ThemePackEndpoints.cs
-- [x] T047 [US3] Build content list UI in src/HugoMatter.Web/Components/Pages/Content/ContentList.razor
-- [x] T048 [US3] Build theme-aware content editor in src/HugoMatter.Web/Components/Pages/Content/ContentEditor.razor
-- [x] T049 [US3] Wire dynamic frontmatter field widgets from theme pack schema in src/HugoMatter.Web/Components/Content/ThemeFieldEditor.razor
-- [x] T050 [P] [US3] Add unit tests for Profile pack field application in tests/HugoMatter.Core.Tests/ThemePacks/HugoProfileThemePackTests.cs
-- [x] T051 [P] [US3] Add unit tests for unknown frontmatter preservation in tests/HugoMatter.Core.Tests/Content/ContentBufferServiceTests.cs
+- [x] T042 [P] [US3] Ship Hugo Profile pack definition as embedded resource in src/HugoMatters.ThemePacks/Packs/hugo-profile.json
+- [x] T043 [US3] Implement Profile pack binder and compatibility probe in src/HugoMatters.ThemePacks/Packs/HugoProfileThemePack.cs
+- [x] T044 [US3] Implement in-session content buffer service in src/HugoMatters.Core/Content/ContentBufferService.cs
+- [x] T045 [US3] Implement GET/POST /api/content and GET/PUT/DELETE /api/content/{path} in src/HugoMatters.ApiService/Endpoints/ContentEndpoints.cs
+- [x] T046 [US3] Implement GET /api/theme-packs and GET /api/theme-packs/{id} in src/HugoMatters.ApiService/Endpoints/ThemePackEndpoints.cs
+- [x] T047 [US3] Build content list UI in src/HugoMatters.Web/Components/Pages/Content/ContentList.razor
+- [x] T048 [US3] Build theme-aware content editor in src/HugoMatters.Web/Components/Pages/Content/ContentEditor.razor
+- [x] T049 [US3] Wire dynamic frontmatter field widgets from theme pack schema in src/HugoMatters.Web/Components/Content/ThemeFieldEditor.razor
+- [x] T050 [P] [US3] Add unit tests for Profile pack field application in tests/HugoMatters.Core.Tests/ThemePacks/HugoProfileThemePackTests.cs
+- [x] T051 [P] [US3] Add unit tests for unknown frontmatter preservation in tests/HugoMatters.Core.Tests/Content/ContentBufferServiceTests.cs
 
 **Checkpoint**: User Story 3 fully functional — theme-aware CRUD in session buffer
 
@@ -151,12 +151,12 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 4
 
-- [x] T052 [US4] Implement save orchestration (Git commits on session branch) in src/HugoMatter.Core/Sessions/SaveService.cs
-- [x] T053 [US4] Implement POST /api/session/save in src/HugoMatter.ApiService/Endpoints/SessionEndpoints.cs
-- [x] T054 [US4] Add Save action and dirty-state tracking in src/HugoMatter.Web/Components/Pages/Content/ContentEditor.razor
-- [x] T055 [US4] Surface save success and failure messages in src/HugoMatter.Web/Components/Shared/Banner.razor
-- [x] T056 [P] [US4] Add unit tests for save commit flow with mocked GitHub port in tests/HugoMatter.Core.Tests/Sessions/SaveServiceTests.cs
-- [x] T057 [P] [US4] Add API tests for save success and auth failure paths in tests/HugoMatter.ApiService.Tests/Session/SaveEndpointTests.cs
+- [x] T052 [US4] Implement save orchestration (Git commits on session branch) in src/HugoMatters.Core/Sessions/SaveService.cs
+- [x] T053 [US4] Implement POST /api/session/save in src/HugoMatters.ApiService/Endpoints/SessionEndpoints.cs
+- [x] T054 [US4] Add Save action and dirty-state tracking in src/HugoMatters.Web/Components/Pages/Content/ContentEditor.razor
+- [x] T055 [US4] Surface save success and failure messages in src/HugoMatters.Web/Components/Shared/Banner.razor
+- [x] T056 [P] [US4] Add unit tests for save commit flow with mocked GitHub port in tests/HugoMatters.Core.Tests/Sessions/SaveServiceTests.cs
+- [x] T057 [P] [US4] Add API tests for save success and auth failure paths in tests/HugoMatters.ApiService.Tests/Session/SaveEndpointTests.cs
 
 **Checkpoint**: User Story 4 fully functional — durable save to session PR (core MVP loop complete)
 
@@ -170,14 +170,14 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 5
 
-- [x] T058 [US5] Implement in-editor preview service using Markdig in src/HugoMatter.Core/Preview/EditorPreviewService.cs
-- [x] T059 [US5] Implement POST /api/preview/editor in src/HugoMatter.ApiService/Endpoints/PreviewEndpoints.cs
-- [x] T060 [US5] Implement ISitePreviewOrchestrator with Docker/Podman Hugo container in src/HugoMatter.Infrastructure/Preview/DockerSitePreviewOrchestrator.cs
-- [x] T061 [US5] Implement POST/GET/DELETE /api/preview/site in src/HugoMatter.ApiService/Endpoints/PreviewEndpoints.cs
-- [x] T062 [US5] Build in-editor preview pane in src/HugoMatter.Web/Components/Content/EditorPreviewPane.razor
-- [x] T063 [US5] Build site preview panel with start/stop controls in src/HugoMatter.Web/Components/Pages/Preview/SitePreview.razor
-- [x] T064 [US5] Enforce site preview uses saved session branch tip only in src/HugoMatter.Infrastructure/Preview/DockerSitePreviewOrchestrator.cs
-- [x] T065 [P] [US5] Add unit tests for preview isolation boundaries in tests/HugoMatter.Core.Tests/Preview/SitePreviewOrchestratorTests.cs
+- [x] T058 [US5] Implement in-editor preview service using Markdig in src/HugoMatters.Core/Preview/EditorPreviewService.cs
+- [x] T059 [US5] Implement POST /api/preview/editor in src/HugoMatters.ApiService/Endpoints/PreviewEndpoints.cs
+- [x] T060 [US5] Implement ISitePreviewOrchestrator with Docker/Podman Hugo container in src/HugoMatters.Infrastructure/Preview/DockerSitePreviewOrchestrator.cs
+- [x] T061 [US5] Implement POST/GET/DELETE /api/preview/site in src/HugoMatters.ApiService/Endpoints/PreviewEndpoints.cs
+- [x] T062 [US5] Build in-editor preview pane in src/HugoMatters.Web/Components/Content/EditorPreviewPane.razor
+- [x] T063 [US5] Build site preview panel with start/stop controls in src/HugoMatters.Web/Components/Pages/Preview/SitePreview.razor
+- [x] T064 [US5] Enforce site preview uses saved session branch tip only in src/HugoMatters.Infrastructure/Preview/DockerSitePreviewOrchestrator.cs
+- [x] T065 [P] [US5] Add unit tests for preview isolation boundaries in tests/HugoMatters.Core.Tests/Preview/SitePreviewOrchestratorTests.cs
 
 **Checkpoint**: User Story 5 fully functional — both preview modes working with correct saved-vs-unsaved semantics
 
@@ -191,9 +191,9 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 6
 
-- [x] T066 [US6] Enable browser spellcheck and lang attributes on editor text surfaces in src/HugoMatter.Web/Components/Content/ThemeFieldEditor.razor
-- [x] T067 [US6] Add spell-check language selector component in src/HugoMatter.Web/Components/Content/SpellCheckLanguageSelector.razor
-- [x] T068 [US6] Persist selected spell-check language in editor UI state in src/HugoMatter.Web/Components/Pages/Content/ContentEditor.razor
+- [x] T066 [US6] Enable browser spellcheck and lang attributes on editor text surfaces in src/HugoMatters.Web/Components/Content/ThemeFieldEditor.razor
+- [x] T067 [US6] Add spell-check language selector component in src/HugoMatters.Web/Components/Content/SpellCheckLanguageSelector.razor
+- [x] T068 [US6] Persist selected spell-check language in editor UI state in src/HugoMatters.Web/Components/Pages/Content/ContentEditor.razor
 
 **Checkpoint**: User Story 6 fully functional — multi-language spell checking in editor
 
@@ -207,14 +207,14 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 7
 
-- [x] T069 [US7] Implement publish orchestration with guards in src/HugoMatter.Core/Sessions/PublishService.cs
-- [x] T070 [US7] Implement discard orchestration with confirmation guard in src/HugoMatter.Core/Sessions/DiscardService.cs
-- [x] T071 [US7] Implement POST /api/session/publish and POST /api/session/discard in src/HugoMatter.ApiService/Endpoints/SessionEndpoints.cs
-- [x] T072 [US7] Stop active site preview on publish or discard in src/HugoMatter.Infrastructure/Preview/DockerSitePreviewOrchestrator.cs
-- [x] T073 [US7] Build Publish and Discard actions UI with guard messaging in src/HugoMatter.Web/Components/Pages/Session/SessionActions.razor
-- [x] T074 [US7] Add discard confirmation dialog for unsaved edits in src/HugoMatter.Web/Components/Shared/DiscardConfirmDialog.razor
-- [x] T075 [P] [US7] Add unit tests for publish guards (no changes, unsaved edits, merge failure) in tests/HugoMatter.Core.Tests/Sessions/PublishServiceTests.cs
-- [x] T076 [P] [US7] Add unit tests for discard confirmation flow in tests/HugoMatter.Core.Tests/Sessions/DiscardServiceTests.cs
+- [x] T069 [US7] Implement publish orchestration with guards in src/HugoMatters.Core/Sessions/PublishService.cs
+- [x] T070 [US7] Implement discard orchestration with confirmation guard in src/HugoMatters.Core/Sessions/DiscardService.cs
+- [x] T071 [US7] Implement POST /api/session/publish and POST /api/session/discard in src/HugoMatters.ApiService/Endpoints/SessionEndpoints.cs
+- [x] T072 [US7] Stop active site preview on publish or discard in src/HugoMatters.Infrastructure/Preview/DockerSitePreviewOrchestrator.cs
+- [x] T073 [US7] Build Publish and Discard actions UI with guard messaging in src/HugoMatters.Web/Components/Pages/Session/SessionActions.razor
+- [x] T074 [US7] Add discard confirmation dialog for unsaved edits in src/HugoMatters.Web/Components/Shared/DiscardConfirmDialog.razor
+- [x] T075 [P] [US7] Add unit tests for publish guards (no changes, unsaved edits, merge failure) in tests/HugoMatters.Core.Tests/Sessions/PublishServiceTests.cs
+- [x] T076 [P] [US7] Add unit tests for discard confirmation flow in tests/HugoMatters.Core.Tests/Sessions/DiscardServiceTests.cs
 
 **Checkpoint**: User Story 7 fully functional — editorial loop complete
 
@@ -228,10 +228,10 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 8
 
-- [x] T077 [US8] Implement site configuration read/write in session buffer in src/HugoMatter.Core/Content/SiteConfigService.cs
-- [x] T078 [US8] Implement GET/PUT /api/site-config in src/HugoMatter.ApiService/Endpoints/SiteConfigEndpoints.cs
-- [x] T079 [US8] Build minimal Profile site config editor in src/HugoMatter.Web/Components/Pages/Config/SiteConfigEditor.razor
-- [x] T080 [P] [US8] Add unit tests for site config allowlist validation in tests/HugoMatter.Core.Tests/Content/SiteConfigServiceTests.cs
+- [x] T077 [US8] Implement site configuration read/write in session buffer in src/HugoMatters.Core/Content/SiteConfigService.cs
+- [x] T078 [US8] Implement GET/PUT /api/site-config in src/HugoMatters.ApiService/Endpoints/SiteConfigEndpoints.cs
+- [x] T079 [US8] Build minimal Profile site config editor in src/HugoMatters.Web/Components/Pages/Config/SiteConfigEditor.razor
+- [x] T080 [P] [US8] Add unit tests for site config allowlist validation in tests/HugoMatters.Core.Tests/Content/SiteConfigServiceTests.cs
 
 **Checkpoint**: User Story 8 fully functional — minimal Profile config editable in session
 
@@ -245,9 +245,9 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ### Implementation for User Story 9
 
-- [x] T081 [US9] Document IThemePackRegistry extension contract in src/HugoMatter.Core/Ports/IThemePackRegistry.cs
-- [x] T082 [US9] Audit and refactor core session/content/preview flows to remove Profile-specific hard-coding in src/HugoMatter.Core/
-- [x] T083 [US9] Add registry unit test proving a second stub pack registers without core changes in tests/HugoMatter.Core.Tests/ThemePacks/ThemePackRegistryTests.cs
+- [x] T081 [US9] Document IThemePackRegistry extension contract in src/HugoMatters.Core/Ports/IThemePackRegistry.cs
+- [x] T082 [US9] Audit and refactor core session/content/preview flows to remove Profile-specific hard-coding in src/HugoMatters.Core/
+- [x] T083 [US9] Add registry unit test proving a second stub pack registers without core changes in tests/HugoMatters.Core.Tests/ThemePacks/ThemePackRegistryTests.cs
 
 **Checkpoint**: User Story 9 complete — theme pack architecture validated for future packs
 
@@ -258,8 +258,8 @@ description: "Task list for Hugo Matter CMS feature implementation"
 **Purpose**: Improvements that affect multiple user stories
 
 - [x] T084 [P] Run manual validation scenarios from specs/001-hugo-matter-cms/quickstart.md
-- [x] T085 [P] Add thin Playwright smoke test for connect → edit → save journey in tests/HugoMatter.E2E.Tests/Smoke/EditingWorkflowTests.cs
-- [x] T086 Audit secret handling to ensure credentials are never logged in src/HugoMatter.Infrastructure/GitHub/
+- [x] T085 [P] Add thin Playwright smoke test for connect → edit → save journey in tests/HugoMatters.E2E.Tests/Smoke/EditingWorkflowTests.cs
+- [x] T086 Audit secret handling to ensure credentials are never logged in src/HugoMatters.Infrastructure/GitHub/
 - [x] T087 Align implemented ApiService endpoints with specs/001-hugo-matter-cms/contracts/api-openapi.yaml
 - [x] T088 [P] Remove dead sample code and unused dependencies across src/
 
@@ -310,12 +310,12 @@ description: "Task list for Hugo Matter CMS feature implementation"
 
 ```bash
 # Launch Profile pack and tests together:
-Task: "Ship Hugo Profile pack definition in src/HugoMatter.ThemePacks/Packs/hugo-profile.json"
-Task: "Add unit tests for Profile pack field application in tests/HugoMatter.Core.Tests/ThemePacks/HugoProfileThemePackTests.cs"
+Task: "Ship Hugo Profile pack definition in src/HugoMatters.ThemePacks/Packs/hugo-profile.json"
+Task: "Add unit tests for Profile pack field application in tests/HugoMatters.Core.Tests/ThemePacks/HugoProfileThemePackTests.cs"
 
 # Launch content API and theme pack API together (different endpoint files):
-Task: "Implement content endpoints in src/HugoMatter.ApiService/Endpoints/ContentEndpoints.cs"
-Task: "Implement theme pack endpoints in src/HugoMatter.ApiService/Endpoints/ThemePackEndpoints.cs"
+Task: "Implement content endpoints in src/HugoMatters.ApiService/Endpoints/ContentEndpoints.cs"
+Task: "Implement theme pack endpoints in src/HugoMatters.ApiService/Endpoints/ThemePackEndpoints.cs"
 ```
 
 ---
@@ -324,12 +324,12 @@ Task: "Implement theme pack endpoints in src/HugoMatter.ApiService/Endpoints/The
 
 ```bash
 # Launch publish and discard domain services together:
-Task: "Implement publish orchestration in src/HugoMatter.Core/Sessions/PublishService.cs"
-Task: "Implement discard orchestration in src/HugoMatter.Core/Sessions/DiscardService.cs"
+Task: "Implement publish orchestration in src/HugoMatters.Core/Sessions/PublishService.cs"
+Task: "Implement discard orchestration in src/HugoMatters.Core/Sessions/DiscardService.cs"
 
 # Launch their unit tests together:
-Task: "Add unit tests for publish guards in tests/HugoMatter.Core.Tests/Sessions/PublishServiceTests.cs"
-Task: "Add unit tests for discard confirmation in tests/HugoMatter.Core.Tests/Sessions/DiscardServiceTests.cs"
+Task: "Add unit tests for publish guards in tests/HugoMatters.Core.Tests/Sessions/PublishServiceTests.cs"
+Task: "Add unit tests for discard confirmation in tests/HugoMatters.Core.Tests/Sessions/DiscardServiceTests.cs"
 ```
 
 ---

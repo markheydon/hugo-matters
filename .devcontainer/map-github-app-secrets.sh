@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Maps Codespaces / devcontainer HM_* environment variables to HugoMatter.ApiService
+# Maps Codespaces / devcontainer HM_* environment variables to HugoMatters.ApiService
 # user-secrets (see specs/001-hugo-matter-cms/contracts/github-app-setup.md).
 #
 # Set repository or user secrets in GitHub Codespaces, for example:
@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-APISERVICE="src/HugoMatter.ApiService/HugoMatter.ApiService.csproj"
+APISERVICE="src/HugoMatters.ApiService/HugoMatters.ApiService.csproj"
 
 map_secret() {
   local env_name="$1"

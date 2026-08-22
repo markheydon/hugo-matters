@@ -1,0 +1,80 @@
+@namespace HugoMatters.Web.Components.Content
+@inject HugoMattersApiClient Api
+
+<div class="rounded-lg border border-slate-200 bg-white">
+    <div class="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+        <h3 class="text-sm font-medium text-slate-700">Preview</h3>
+        <Button Variant="Button.ButtonVariant.Ghost" IconName="eye" OnClick="RefreshPreview" Loading="@Loading">
+            Refresh
+        </Button>
+    </div>
+    <div class="prose prose-sm max-w-none p-4 min-h-[200px] max-h-[500px] overflow-auto">
+        @if (Loading)
+        {
+            <p class="text-sm text-slate-500">Rendering preview…</p>
+        }
+        else if (Error is not null)
+        {
+            <p class="text-sm text-red-600">@Error</p>
+        }
+        else if (Html is not null)
+        {
+            @((MarkupString)Html)
+        }
+        else
+        {
+            <p class="text-sm text-slate-500">Preview will appear here.</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Body { get; set; } = "";
+
+    [Parameter]
+    public Dictionary<string, object?>? FrontMatter { get; set; }
+
+    [Parameter]
+    public bool AutoRefresh { get; set; } = true;
+
+    private string? Html;
+    private string? Error;
+    private bool Loading;
+    private string? _lastBody;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AutoRefresh && Body != _lastBody)
+        {
+            _lastBody = Body;
+            await RefreshPreview();
+        }
+    }
+
+    private async Task RefreshPreview()
+    {
+        Loading = true;
+        Error = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Api.PreviewEditorAsync(new EditorPreviewRequest
+            {
+                Body = Body,
+                FrontMatter = FrontMatter,
+            });
+            Html = response.Html;
+        }
+        catch (ApiException ex)
+        {
+            Error = ex.Message;
+            Html = null;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}
