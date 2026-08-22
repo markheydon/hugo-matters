@@ -10,7 +10,6 @@ using HugoMatters.ThemePacks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace HugoMatters.Infrastructure;
 
@@ -65,8 +64,6 @@ public static class DependencyInjection
         services.AddScoped<SiteConfigService>();
         services.AddSingleton<EditorPreviewService>();
 
-        services.AddHostedService<InfrastructureDatabaseInitializer>();
-
         return services;
     }
 
@@ -78,24 +75,5 @@ public static class DependencyInjection
         using var scope = services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<HugoMattersDbContext>();
         await dbContext.Database.EnsureCreatedAsync();
-    }
-
-    private sealed class InfrastructureDatabaseInitializer : IHostedService
-    {
-        private readonly IServiceScopeFactory _scopeFactory;
-
-        public InfrastructureDatabaseInitializer(IServiceScopeFactory scopeFactory)
-        {
-            _scopeFactory = scopeFactory;
-        }
-
-        public async Task StartAsync(CancellationToken cancellationToken)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<HugoMattersDbContext>();
-            await dbContext.Database.EnsureCreatedAsync(cancellationToken);
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

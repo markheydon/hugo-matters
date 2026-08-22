@@ -18,6 +18,11 @@ namespace HugoMatters.ApiService.Tests;
 /// </summary>
 public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
 {
+    private readonly string _dataDirectory = Path.Combine(
+        Path.GetTempPath(),
+        "hugo-matters-tests",
+        Guid.NewGuid().ToString("N"));
+
     /// <summary>Substituted GitHub repository port.</summary>
     public IGitHubRepository GitHub { get; } = Substitute.For<IGitHubRepository>();
 
@@ -37,7 +42,7 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["HugoMatters:MetadataConnectionString"] = "InMemory",
+                ["HugoMatters:DataDirectory"] = _dataDirectory,
                 ["GitHubApp:ClientId"] = "test-client-id",
             });
         });
@@ -49,5 +54,29 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
             services.AddSingleton(GitHub);
             services.AddSingleton<IMetadataStore, InMemoryMetadataStore>();
         });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (!disposing)
+        {
+            return;
+        }
+
+        try
+        {
+            if (Directory.Exists(_dataDirectory))
+            {
+                Directory.Delete(_dataDirectory, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 }
