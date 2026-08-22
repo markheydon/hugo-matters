@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 001-hugo-matter-cms
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - 001-hugo-matter-cms
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore HugoMatters.slnx
+
+      - name: Verify formatting
+        run: dotnet format HugoMatters.slnx --no-restore --verify-no-changes --verbosity minimal
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: src/HugoMatters.Web/package-lock.json
+
+      - name: Restore dependencies
+        run: dotnet restore HugoMatters.slnx
+
+      - name: Build solution
+        run: dotnet build HugoMatters.slnx --no-restore
+
+      - name: Run tests
+        run: dotnet test HugoMatters.slnx --no-build --verbosity normal
