@@ -41,6 +41,8 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("HugoMatters:DataDirectory", _dataDirectory);
+
         builder.ConfigureAppConfiguration(config =>
         {
             var settings = new Dictionary<string, string?>

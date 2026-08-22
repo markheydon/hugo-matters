@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using HugoMatters.Core.Connection;
 using HugoMatters.Core.Content;
 using HugoMatters.Core.Ports;
@@ -70,10 +71,22 @@ public static class DependencyInjection
     /// <summary>
     /// Ensures the metadata database schema exists.
     /// </summary>
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> DatabaseInitializationLocks = new();
+
     public static async Task InitializeInfrastructureAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<HugoMattersDbContext>();
-        await dbContext.Database.EnsureCreatedAsync();
+        var connectionString = dbContext.Database.GetDbConnection().ConnectionString ?? string.Empty;
+        var gate = DatabaseInitializationLocks.GetOrAdd(connectionString, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+        try
+        {
+            await dbContext.Database.EnsureCreatedAsync();
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 }
