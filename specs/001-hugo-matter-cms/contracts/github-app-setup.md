@@ -35,7 +35,7 @@ aspire secret set Parameters:github-app-redirect-uri "http://localhost:5253/conn
 ```
 
 - `github-app-private-key-pem`: PEM text (include `BEGIN`/`END` lines) **or** an absolute path to a PEM file on the machine running ApiService.
-- `github-app-redirect-uri`: optional; defaults to `http://localhost:5253/connect` if unset. Must match the GitHub App **Callback URL** (Web `/connect` route on the local Web port).
+- `github-app-redirect-uri`: optional; defaults to `http://localhost:5253/connect` if unset. Set via `aspire secret set` when the Web app runs on a different port or scheme (e.g. `https://localhost:7175/connect`). Must match the GitHub App **Callback URL** (Web `/connect` route on the local Web port). Do not use `publishValueAsDefault` for this parameter—Aspire secrets override the code default only when that flag is absent.
 - List configured keys (values hidden): `aspire secret list`
 
 Parameters appear in the **Aspire dashboard** under **Parameters**; secret parameters are masked.

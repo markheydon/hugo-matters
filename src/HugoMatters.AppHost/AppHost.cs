@@ -6,8 +6,7 @@ var githubAppClientSecret = builder.AddParameter("github-app-client-secret", sec
 var githubAppPrivateKeyPem = builder.AddParameter("github-app-private-key-pem", secret: true);
 var githubAppRedirectUri = builder.AddParameter(
     "github-app-redirect-uri",
-    "http://localhost:5253/connect",
-    publishValueAsDefault: true);
+    "http://localhost:5253/connect");
 
 var apiService = builder.AddProject<Projects.HugoMatters_ApiService>("apiservice")
     .WithHttpHealthCheck("/health")
