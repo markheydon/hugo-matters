@@ -22,7 +22,27 @@ This is an explicit plan/setup contract for day-one GitHub App credentials. PATs
 
 ## Local secrets (never commit)
 
-Configure on `HugoMatters.ApiService` (names illustrative; lock in implementation):
+### Primary: Aspire AppHost parameters (recommended)
+
+From the **repository root**, set AppHost user secrets via the Aspire CLI. Keys map to `AddParameter` names in `HugoMatters.AppHost` and are injected into ApiService as `GitHubApp__*` environment variables.
+
+```bash
+aspire secret set Parameters:github-app-id "<app-id>"
+aspire secret set Parameters:github-app-client-id "<client-id>"
+aspire secret set Parameters:github-app-client-secret "<client-secret>"
+aspire secret set Parameters:github-app-private-key-pem "<pem-contents-or-absolute-path-to-pem-file>"
+aspire secret set Parameters:github-app-redirect-uri "http://localhost:5253/connect"
+```
+
+- `github-app-private-key-pem`: PEM text (include `BEGIN`/`END` lines) **or** an absolute path to a PEM file on the machine running ApiService.
+- `github-app-redirect-uri`: optional; defaults to `http://localhost:5253/connect` if unset. Must match the GitHub App **Callback URL** (Web `/connect` route on the local Web port).
+- List configured keys (values hidden): `aspire secret list`
+
+Parameters appear in the **Aspire dashboard** under **Parameters**; secret parameters are masked.
+
+### Alternative: ApiService dotnet user-secrets
+
+For running ApiService without AppHost (e.g. isolated API debugging):
 
 ```bash
 cd src/HugoMatters.ApiService
@@ -30,7 +50,8 @@ dotnet user-secrets init
 dotnet user-secrets set "GitHubApp:AppId" "<app-id>"
 dotnet user-secrets set "GitHubApp:ClientId" "<client-id>"
 dotnet user-secrets set "GitHubApp:ClientSecret" "<client-secret>"
-dotnet user-secrets set "GitHubApp:PrivateKeyPem" "<pem-contents-or-path-convention>"
+dotnet user-secrets set "GitHubApp:PrivateKeyPem" "<pem-contents-or-path>"
+dotnet user-secrets set "GitHubApp:RedirectUri" "http://localhost:5253/connect"
 ```
 
 Equivalent environment variables may be used for CI or non-user-secrets hosts. Secrets must never appear in logs, OpenAPI examples with real values, or generated Hugo content.

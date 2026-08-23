@@ -79,7 +79,7 @@ public static class ConnectionEndpoints
         {
             return ApiResults.Error(
                 "github_app_not_configured",
-                "GitHub App is not configured. Configure App credentials in ApiService user secrets.",
+                "GitHub App is not configured. Set AppHost parameters via aspire secret (see github-app-setup.md).",
                 StatusCodes.Status503ServiceUnavailable);
         }
     }

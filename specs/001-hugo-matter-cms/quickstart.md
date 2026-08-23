@@ -17,11 +17,13 @@
 # From repo root
 cd src/HugoMatters.Web && npm install && npm run build:css && cd ../..
 
-# Configure GitHub App secrets (see contracts/github-app-setup.md)
-cd src/HugoMatters.ApiService
-dotnet user-secrets set "GitHubApp:AppId" "<app-id>"
-# ... ClientId, ClientSecret, PrivateKeyPem
-cd ../..
+# Configure GitHub App secrets on AppHost (see contracts/github-app-setup.md)
+aspire secret set Parameters:github-app-id "<app-id>"
+aspire secret set Parameters:github-app-client-id "<client-id>"
+aspire secret set Parameters:github-app-client-secret "<client-secret>"
+aspire secret set Parameters:github-app-private-key-pem "<pem-or-path>"
+# Optional if Web runs on a different port:
+# aspire secret set Parameters:github-app-redirect-uri "http://localhost:5253/connect"
 ```
 
 ## Start the app
