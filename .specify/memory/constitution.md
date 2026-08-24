@@ -1,16 +1,12 @@
 <!--
 Sync Impact Report:
-- Version change: (none) → 1.0.0
-- Modified principles: N/A (initial ratification; prior file was unresolved template placeholders)
+- Version change: 1.0.0 → 1.1.0
+- Modified principles: none renamed
 - Added sections:
-  - Core Principles I–VIII (Security by Default; Git Is Source of Truth;
-    Theme Knowledge Lives in the Product; Local-First Operation;
-    Content-First Scope; Simple Session Model; Faithful Preview and
-    Durable Integrations; Simplicity and Clear Boundaries)
-  - Quality Expectations
-  - Document Boundaries
-  - Governance
-- Removed sections: N/A
+  - Core Principle IX. Honest Feedback and Visible Progress
+  - Quality Expectations bullets for owner-facing failures and
+    compound-operation progress
+- Removed sections: none
 - Follow-up TODOs: none
 -->
 # Hugo Matters Constitution
@@ -132,6 +128,28 @@ YAGNI for v1.
 **Rationale**: Clear boundaries and justified complexity keep the system
 evolvable and prevent premature stack or feature lock-in.
 
+### IX. Honest Feedback and Visible Progress
+
+Owners MUST understand failures and in-flight work without guessing.
+
+- User-visible failures MUST name the failed operation in plain language
+  and, when known, what the owner can do next.
+- Opaque generic copy (for example only "internal error" or "something went
+  wrong") MUST NOT be the sole user-visible outcome of a failed operation.
+- Internal diagnostics MAY exist for operators; they MUST NOT replace the
+  owner-facing explanation.
+- User-visible messages MUST NOT disclose secrets, tokens, or other
+  sensitive internals (see Security by Default).
+- A user-initiated action that comprises two or more distinct steps (local
+  or remote) MUST show staged progress through those steps while the work
+  runs. An indeterminate busy state on the control that started the action
+  is insufficient by itself.
+- A single-step action MAY use a simpler busy state.
+
+**Rationale**: Solo owners cannot treat logs or stack traces as the product
+UX. Opaque errors stall work; compound operations that look frozen erode
+trust even when they succeed.
+
 ## Quality Expectations
 
 Critical behaviors MUST be covered by automated tests at the boundaries that
@@ -141,6 +159,9 @@ matter:
 - Theme-pack application (fields, defaults, isolation across packs)
 - Repository operations (branch, commit, pull request, merge semantics)
 - Preview isolation (workspace confinement; no unintended reach)
+- Owner-facing failure text for operations that can fail in distinguishable
+  ways
+- Staged progress for user actions that comprise two or more steps
 
 Changes that affect security-sensitive paths MUST include appropriate
 automated coverage. Prefer tests that fail when a principle is violated over
@@ -148,6 +169,7 @@ tests that only assert happy-path UI chrome.
 
 **Rationale**: Principles are durable only when regressions are detectable;
 security and source-of-truth paths are the highest-cost failure modes.
+Owner-facing honesty and progress are how those failures stay usable.
 
 ## Document Boundaries
 
@@ -174,4 +196,4 @@ specs, plans, or tasks.
 - Unjustified violations MUST be resolved by changing the spec, plan, or
   tasks—not by weakening these principles.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-21
+**Version**: 1.1.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-24
