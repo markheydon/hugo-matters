@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Builder;
-
 namespace HugoMatters.Web.Authentication;
 
 public static class GitHubSignInGateApplicationBuilderExtensions

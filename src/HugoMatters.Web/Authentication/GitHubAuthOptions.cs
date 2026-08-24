@@ -21,7 +21,7 @@ public sealed class GitHubAuthOptions
 
     public string HostedSignInScopes { get; set; } = "read:user";
 
-  /// <summary>Optional GitHub App slug for the install URL (e.g. <c>hugo-matters-local</c>).</summary>
+    /// <summary>Optional GitHub App slug for the install URL (e.g. <c>hugo-matters-local</c>).</summary>
     public string GitHubAppSlug { get; set; } = string.Empty;
 
     public string HostedOwnerLoginClaimType { get; set; } = GitHubAuthClaimTypes.OwnerLogin;

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Json;
 using HugoMatters.Web.Authentication;
 using Microsoft.Extensions.Options;
@@ -56,7 +55,7 @@ public sealed class GitHubAuthGatewayTests
         Assert.Equal(99, session.InstallationId);
     }
 
-  [Fact]
+    [Fact]
     public void BuildAuthoriseUrl_includes_client_id_and_state()
     {
         var gateway = CreateGateway([]);
