@@ -70,54 +70,6 @@ public sealed class SessionEndpointsTests
         Assert.Equal(SessionState.Active, session.State);
     }
 
-    [Fact]
-    public async Task ResumeSession_ReturnsConflict_WhenAnotherSessionActive()
-    {
-        await using var factory = CreateConnectedFactory();
-        ConfigureSessionGitHub(factory);
-
-        using var client = factory.CreateClient();
-        await ConnectSite(client);
-        await client.PostAsync("/api/session", null, TestContext.Current.CancellationToken);
-
-        factory.GitHub.ListOpenPullRequestsAsync(42, "owner", "repo", Arg.Any<CancellationToken>())
-            .Returns([
-                new GitHubPullRequestInfo
-                {
-                    Number = 8,
-                    HtmlUrl = "https://github.com/owner/repo/pull/8",
-                    Title = "Hugo Matters editing session (other)",
-                    HeadRef = "hugo-matters/session-other",
-                    BaseRef = "main",
-                },
-            ]);
-        factory.GitHub.GetBranchTipShaAsync(
-            42,
-            "owner",
-            "repo",
-            "hugo-matters/session-other",
-            Arg.Any<CancellationToken>())
-            .Returns("branch-sha");
-
-        var response = await client.PostAsJsonAsync(
-            "/api/session/resume",
-            new ResumeSessionRequest { PullRequestNumber = 8 },
-            TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task ApiRequests_RequireInternalToken()
-    {
-        await using var factory = new HugoMattersApiFactory();
-        using var client = factory.CreateClientWithoutInternalToken();
-
-        var response = await client.GetAsync("/api/connection", TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
     private static HugoMattersApiFactory CreateConnectedFactory()
     {
         var factory = new HugoMattersApiFactory();

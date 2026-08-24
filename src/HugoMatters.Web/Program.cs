@@ -5,7 +5,6 @@ using HugoMatters.Web.Authentication;
 using HugoMatters.Web.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 
@@ -28,30 +27,12 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddOutputCache();
 builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddHttpContextAccessor();
 
 builder.Services.Configure<GitHubAuthOptions>(
     builder.Configuration.GetSection(GitHubAuthOptions.SectionName));
-builder.Services.Configure<InternalApiOptions>(
-    builder.Configuration.GetSection(InternalApiOptions.SectionName));
 
-builder.Services.AddSingleton<GitHubAuthTokenStore>();
-builder.Services.AddScoped<GitHubAuthGateway>();
-builder.Services.AddScoped<GitHubUserContext>();
-builder.Services.AddScoped<GitHubAuthSessionManager>();
-builder.Services.AddTransient<InternalApiAuthHandler>();
-
-builder.Services.AddHttpClient<HugoMattersApiClient>((sp, client) =>
-{
-    client.BaseAddress = new("https+http://apiservice");
-    // Preview start can exceed Aspire's default ~10s resilience attempt timeout.
-    // Drop the default resilience handler and rely on HttpClient.Timeout instead
-    // (MaxRetryAttempts=0 is rejected by options validation and prevents host startup).
-    client.Timeout = TimeSpan.FromMinutes(5);
-    ApplyInternalApiAuthHeader(client, sp.GetRequiredService<IOptions<InternalApiOptions>>().Value);
-})
-.AddHttpMessageHandler<InternalApiAuthHandler>()
-.RemoveAllResilienceHandlers();
+builder.Services.AddHttpClient<HugoMattersApiClient>(client =>
+    client.BaseAddress = new("https+http://apiservice"));
 
 builder.Services.AddHttpClient(GitHubAuthGateway.GitHubAuthClientName, client =>
 {
@@ -59,6 +40,9 @@ builder.Services.AddHttpClient(GitHubAuthGateway.GitHubAuthClientName, client =>
     // GitHub rejects API calls without a User-Agent (403 Forbidden).
     client.DefaultRequestHeaders.UserAgent.ParseAdd("HugoMatters");
 });
+
+builder.Services.AddScoped<GitHubAuthGateway>();
+builder.Services.AddScoped<GitHubUserContext>();
 
 var hostedAuthOptions = builder.Configuration.GetSection(GitHubAuthOptions.SectionName).Get<GitHubAuthOptions>()
     ?? new GitHubAuthOptions();
@@ -128,7 +112,6 @@ app.MapGet("/auth/sign-in", static (HttpContext context, GitHubAuthGateway authG
 app.MapGet("/auth/callback", static async (
     HttpContext context,
     GitHubAuthGateway authGateway,
-    GitHubAuthTokenStore tokenStore,
     ILogger<Program> logger) =>
 {
     if (!TryReadAndClearStateCookie(context, out var state, out var returnUrl))
@@ -154,12 +137,10 @@ app.MapGet("/auth/callback", static async (
         return Results.Redirect(GitHubAuthErrorRoutes.BuildErrorUrl(GitHubAuthErrorRoutes.SignInIncomplete));
     }
 
-    var callbackUri = BuildCallbackUri(context, context.RequestServices.GetRequiredService<IOptions<GitHubAuthOptions>>().Value);
-
     GitHubAuthSession session;
     try
     {
-        session = await authGateway.ExchangeCodeForSessionAsync(code, callbackUri, context.RequestAborted).ConfigureAwait(false);
+        session = await authGateway.ExchangeCodeForSessionAsync(code, context.RequestAborted).ConfigureAwait(false);
     }
     catch (InvalidOperationException ex)
     {
@@ -172,8 +153,7 @@ app.MapGet("/auth/callback", static async (
         return Results.Redirect(GitHubAuthErrorRoutes.BuildErrorUrl(GitHubAuthErrorRoutes.SignInUnavailable));
     }
 
-    var sessionKey = tokenStore.StoreSession(session);
-    var principal = authGateway.CreatePrincipal(session, sessionKey);
+    var principal = authGateway.CreatePrincipal(session);
     var authenticationProperties = new AuthenticationProperties
     {
         IsPersistent = false,
@@ -188,33 +168,18 @@ app.MapGet("/auth/callback", static async (
 
     if (session.InstallationId is null or <= 0)
     {
-        try
-        {
-            var installations = await authGateway.ListUserInstallationsAsync(session.AccessToken, context.RequestAborted)
-                .ConfigureAwait(false);
-            if (installations.Count == 0)
-            {
-                return Results.Redirect("/connect?needs_install=true");
-            }
-
-            return Results.Redirect("/connect?needs_installation_pick=true");
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Could not list GitHub App installations after sign-in.");
-            return Results.Redirect("/connect?needs_install=true");
-        }
+        return Results.Redirect("/connect?needs_install=true");
     }
 
     return Results.Redirect(returnUrl);
 }).AllowAnonymous();
 
-app.MapPost("/auth/sign-out", SignOutSession).AllowAnonymous();
+app.MapGet("/auth/sign-out", (Delegate)SignOutSession).AllowAnonymous();
+app.MapPost("/auth/sign-out", (Delegate)SignOutSession).DisableAntiforgery().AllowAnonymous();
 
-app.MapGet("/auth/session-expired", static async (HttpContext context, GitHubAuthTokenStore tokenStore) =>
+app.MapGet("/auth/session-expired", static async (HttpContext context) =>
 {
     var returnUrl = GitHubAuthReturnUrl.GetSafeReturnUrl(GetReturnUrlFromQuery(context.Request.Query));
-    RemoveSessionForUser(context, tokenStore);
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).ConfigureAwait(false);
     return Results.Redirect(GitHubAuthErrorRoutes.BuildErrorUrl(GitHubAuthErrorRoutes.SessionExpired, returnUrl));
 }).AllowAnonymous();
@@ -226,36 +191,10 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
-static void ApplyInternalApiAuthHeader(HttpClient client, InternalApiOptions options)
+static async Task<IResult> SignOutSession(HttpContext context)
 {
-    if (!options.IsConfigured)
-    {
-        return;
-    }
-
-    if (!client.DefaultRequestHeaders.Contains(InternalApiAuthHandler.SharedSecretHeaderName))
-    {
-        client.DefaultRequestHeaders.TryAddWithoutValidation(
-            InternalApiAuthHandler.SharedSecretHeaderName,
-            options.SharedSecret);
-    }
-}
-
-static async Task<IResult> SignOutSession(
-    HttpContext context,
-    GitHubAuthTokenStore tokenStore,
-    IAntiforgery antiforgery)
-{
-    await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
-    RemoveSessionForUser(context, tokenStore);
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).ConfigureAwait(false);
     return Results.Redirect("/welcome");
-}
-
-static void RemoveSessionForUser(HttpContext context, GitHubAuthTokenStore tokenStore)
-{
-    var sessionKey = context.User.FindFirst(GitHubAuthClaimTypes.SessionKey)?.Value;
-    tokenStore.RemoveSession(sessionKey);
 }
 
 static string BuildCallbackUri(HttpContext context, GitHubAuthOptions options)

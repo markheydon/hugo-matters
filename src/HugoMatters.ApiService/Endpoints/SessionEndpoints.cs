@@ -97,19 +97,13 @@ public static class SessionEndpoints
         {
             return ApiResults.Error("unauthorized", ex.Message, StatusCodes.Status401Unauthorized);
         }
-        catch (Octokit.NotFoundException ex)
+        catch (Exception ex)
         {
+            // Prefer 4xx so the Web client's resilience handler does not retry expected failures.
             return ApiResults.Error(
-                "github_not_found",
-                string.IsNullOrWhiteSpace(ex.Message) ? "GitHub resource was not found." : ex.Message,
-                StatusCodes.Status404NotFound);
-        }
-        catch (Octokit.ApiException ex) when ((int)ex.StatusCode is >= 400 and < 500)
-        {
-            return ApiResults.Error(
-                "github_request_failed",
-                string.IsNullOrWhiteSpace(ex.Message) ? "GitHub rejected the session request." : ex.Message,
-                (int)ex.StatusCode);
+                "session_start_failed",
+                string.IsNullOrWhiteSpace(ex.Message) ? "Could not start an editing session." : ex.Message,
+                StatusCodes.Status400BadRequest);
         }
     }
 

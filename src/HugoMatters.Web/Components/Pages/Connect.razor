@@ -10,8 +10,6 @@
 @inject NavigationManager Navigation
 @inject GitHubUserContext GitHubUser
 @inject GitHubAuthGateway AuthGateway
-@inject GitHubAuthSessionManager AuthSessionManager
-@inject IHttpContextAccessor HttpContextAccessor
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IOptions<GitHubAuthOptions> GitHubAuthOptionsAccessor
 
@@ -117,23 +115,6 @@
             IsVisible="@(errorMessage is not null)"
             IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
 
-        @if (needsInstallationPick && availableInstallations.Count > 0)
-        {
-            <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                <p class="font-medium text-slate-900">Choose a GitHub App installation</p>
-                <p class="mt-1">Your account has access to multiple installations. Select the one that owns your Hugo site repository.</p>
-                <div class="mt-4">
-                    <Select
-                        Label="Installation"
-                        Placeholder="Select installation"
-                        Required="true"
-                        Value="@selectedInstallationIdText"
-                        ValueChanged="OnInstallationSelected"
-                        Options="@installationOptions" />
-                </div>
-            </div>
-        }
-
         @if (needsInstall)
         {
             <div class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -181,21 +162,7 @@
                 }
                 else if (installationId is null or <= 0)
                 {
-                    if (loadingInstallations)
-                    {
-                        <div class="flex items-center gap-2 text-sm text-slate-500">
-                            <Icon Name="loader" CssClass="animate-spin" />
-                            <span>Loading GitHub App installations…</span>
-                        </div>
-                    }
-                    else if (availableInstallations.Count > 0)
-                    {
-                        <p class="text-sm text-slate-600">Select which GitHub App installation to use before choosing a repository.</p>
-                    }
-                    else
-                    {
-                        <p class="text-sm text-slate-500">Install the Hugo Matters GitHub App before connecting a repository.</p>
-                    }
+                    <p class="text-sm text-slate-500">Install the GitHub App before connecting a repository.</p>
                 }
                 else if (repositories.Count == 0)
                 {
@@ -272,17 +239,12 @@
     private string? accessToken;
     private string? installUrl;
     private bool needsInstall;
-    private bool needsInstallationPick;
-    private bool loadingInstallations;
     private bool connecting;
     private bool loadingRepos = true;
     private string? errorMessage;
     private string? selectedFullName;
-    private string? selectedInstallationIdText;
     private IReadOnlyList<GitHubInstallationRepository> repositories = [];
-    private IReadOnlyList<GitHubUserInstallation> availableInstallations = [];
     private IReadOnlyList<Select.SelectOption> repositoryOptions = [];
-    private IReadOnlyList<Select.SelectOption> installationOptions = [];
     private SteppedProgressRunner? progress;
 
     protected override async Task LoadPageAsync()
@@ -309,19 +271,10 @@
             if (site is not null)
             {
                 loadingRepos = false;
-                loadingInstallations = false;
                 return;
             }
 
-            await LoadInstallationsAsync();
-            if (installationId is > 0)
-            {
-                await LoadRepositoriesAsync();
-            }
-            else
-            {
-                loadingRepos = false;
-            }
+            await LoadRepositoriesAsync();
         }
         finally
         {
@@ -340,89 +293,9 @@
             needsInstall = true;
         }
 
-        if (query.TryGetValue("needs_installation_pick", out var needsPickValue)
-            && string.Equals(needsPickValue.ToString(), "true", StringComparison.OrdinalIgnoreCase))
-        {
-            needsInstallationPick = true;
-        }
-
         if (query.TryGetValue("error", out var error) && !string.IsNullOrWhiteSpace(error))
         {
             errorMessage = "Could not connect the repository. Check your GitHub App installation and try again.";
-        }
-    }
-
-    private async Task LoadInstallationsAsync()
-    {
-        if (string.IsNullOrWhiteSpace(accessToken))
-        {
-            availableInstallations = [];
-            installationOptions = [];
-            loadingInstallations = false;
-            return;
-        }
-
-        loadingInstallations = true;
-        try
-        {
-            availableInstallations = await AuthGateway.ListUserInstallationsAsync(accessToken, CancellationToken.None);
-            installationOptions = availableInstallations
-                .Select(installation => new Select.SelectOption(
-                    installation.Id.ToString(),
-                    installation.AccountLogin))
-                .ToArray();
-
-            if (installationId is > 0)
-            {
-                selectedInstallationIdText = installationId.Value.ToString();
-            }
-            else if (availableInstallations.Count == 1)
-            {
-                await BindInstallationAsync(availableInstallations[0].Id);
-            }
-        }
-        catch (HttpRequestException)
-        {
-            errorMessage = "Could not load GitHub App installations. Try signing in again.";
-            availableInstallations = [];
-            installationOptions = [];
-        }
-        catch (InvalidOperationException ex)
-        {
-            errorMessage = ex.Message;
-            availableInstallations = [];
-            installationOptions = [];
-        }
-        finally
-        {
-            loadingInstallations = false;
-        }
-    }
-
-    private async Task OnInstallationSelected(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || !long.TryParse(value, out var parsedInstallationId))
-        {
-            return;
-        }
-
-        selectedInstallationIdText = value;
-        await BindInstallationAsync(parsedInstallationId);
-        needsInstallationPick = false;
-        needsInstall = false;
-        await LoadRepositoriesAsync();
-    }
-
-    private async Task BindInstallationAsync(long parsedInstallationId)
-    {
-        if (HttpContextAccessor.HttpContext is null)
-        {
-            return;
-        }
-
-        if (await AuthSessionManager.TrySetInstallationIdAsync(HttpContextAccessor.HttpContext, parsedInstallationId))
-        {
-            installationId = parsedInstallationId;
         }
     }
 

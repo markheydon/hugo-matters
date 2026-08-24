@@ -77,9 +77,7 @@ public static class PreviewEndpoints
             if (existing is not null
                 && existing.Status is SitePreviewState.Starting or SitePreviewState.Running)
             {
-                // Idempotent: a concurrent or retried start should observe the in-flight preview,
-                // not surface a bare HTTP 409 "Conflict" in the UI.
-                return Results.Ok(ToResponse(existing));
+                return Results.Conflict(ToResponse(existing));
             }
 
             var tipSha = await gitHubRepository.GetBranchTipShaAsync(
@@ -106,20 +104,7 @@ public static class PreviewEndpoints
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already running", StringComparison.OrdinalIgnoreCase))
         {
-            var session = await sessionService.GetActiveSessionAsync(cancellationToken);
-            if (session is not null)
-            {
-                var existing = await metadataStore.GetSitePreviewAsync(session.Id, cancellationToken);
-                if (existing is not null)
-                {
-                    return Results.Ok(ToResponse(existing));
-                }
-            }
-
-            return ApiResults.Error(
-                "preview_already_running",
-                "A site preview is already running for this session.",
-                StatusCodes.Status409Conflict);
+            return Results.Conflict();
         }
         catch (InvalidOperationException ex)
         {

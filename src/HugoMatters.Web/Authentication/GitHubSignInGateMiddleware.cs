@@ -5,26 +5,10 @@ namespace HugoMatters.Web.Authentication;
 
 /// <summary>
 /// Challenges unauthenticated browser requests while allowing static assets and auth routes.
+/// Mirrors SoloDevBoard hosted admission bypass rules without org allowlisting.
 /// </summary>
 public sealed class GitHubSignInGateMiddleware(RequestDelegate next)
 {
-    private static readonly HashSet<string> StaticFileExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".css",
-        ".js",
-        ".map",
-        ".woff",
-        ".woff2",
-        ".ttf",
-        ".otf",
-        ".ico",
-        ".svg",
-        ".png",
-        ".gif",
-        ".webp",
-        ".json",
-    };
-
     private readonly RequestDelegate _next = next ?? throw new ArgumentNullException(nameof(next));
 
     public async Task InvokeAsync(HttpContext context)
@@ -71,7 +55,6 @@ public sealed class GitHubSignInGateMiddleware(RequestDelegate next)
             return false;
         }
 
-        var extension = Path.GetExtension(value);
-        return !string.IsNullOrWhiteSpace(extension) && StaticFileExtensions.Contains(extension);
+        return value.Contains('.', StringComparison.Ordinal);
     }
 }

@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- RemoveAllResilienceHandlers is experimental; required to override Aspire's ~10s HttpClient attempt timeout for long preview starts. -->
-    <NoWarn>$(NoWarn);EXTEXP0001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

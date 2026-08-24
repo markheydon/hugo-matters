@@ -1,8 +1,5 @@
-using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using HugoMatters.ApiService.Security;
 using HugoMatters.Core.Json;
 using HugoMatters.Core.Ports;
 using HugoMatters.Infrastructure.Persistence;
@@ -21,8 +18,6 @@ namespace HugoMatters.ApiService.Tests;
 /// </summary>
 public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
 {
-    internal const string TestInternalApiToken = "test-internal-token";
-
     /// <summary>When false, GitHub App JWT credentials are omitted from test configuration.</summary>
     public bool IncludeGitHubAppCredentials { get; init; } = true;
 
@@ -44,17 +39,6 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
         },
     };
 
-    public new HttpClient CreateClient()
-    {
-        var client = base.CreateClient();
-        client.DefaultRequestHeaders.TryAddWithoutValidation(
-            InternalApiAuthenticationMiddleware.SharedSecretHeaderName,
-            TestInternalApiToken);
-        return client;
-    }
-
-    public HttpClient CreateClientWithoutInternalToken() => base.CreateClient();
-
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("HugoMatters:DataDirectory", _dataDirectory);
@@ -64,7 +48,6 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
             var settings = new Dictionary<string, string?>
             {
                 ["HugoMatters:DataDirectory"] = _dataDirectory,
-                ["InternalApi:SharedSecret"] = TestInternalApiToken,
             };
 
             if (IncludeGitHubAppCredentials)

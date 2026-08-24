@@ -33,10 +33,8 @@ aspire secret set Parameters:github-app-client-id "<client-id>"
 aspire secret set Parameters:github-app-client-secret "<client-secret>"
 aspire secret set Parameters:github-app-private-key-pem "<pem-contents-or-absolute-path-to-pem-file>"
 aspire secret set Parameters:github-app-callback-base-uri "https://localhost:7175"
-aspire secret set Parameters:internal-api-token "<random-shared-secret>"
 ```
 
-- `internal-api-token`: shared secret for Web → ApiService calls (`InternalApi:SharedSecret` on both services). Generate a long random string.
 - `github-app-private-key-pem`: PEM text (include `BEGIN`/`END` lines) **or** an absolute path to a PEM file on the machine running ApiService.
 - `github-app-callback-base-uri`: Web HTTPS origin for OAuth callback (e.g. `https://localhost:7175`). Combined with `/auth/callback` for the GitHub App **Callback URL**. Defaults via `appsettings.json` if unset.
 - **Web** receives client id/secret and callback base URI as `GitHubAuth__*` environment variables.

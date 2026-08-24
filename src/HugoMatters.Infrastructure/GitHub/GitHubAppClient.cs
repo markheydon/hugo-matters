@@ -63,7 +63,9 @@ public sealed class GitHubAppClient : IGitHubRepository
                     throw new InvalidOperationException("GitHub repository response was missing owner or name.");
                 }
 
-                var hasPullRequests = payload.HasPullRequests ?? false;
+                var hasPullRequests = payload.HasPullRequests
+                    ?? payload.HasIssues
+                    ?? true;
 
                 return new GitHubRepositoryInfo
                 {

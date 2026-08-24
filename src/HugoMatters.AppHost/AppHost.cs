@@ -5,13 +5,11 @@ var githubAppClientId = builder.AddParameter("github-app-client-id", secret: tru
 var githubAppClientSecret = builder.AddParameter("github-app-client-secret", secret: true);
 var githubAppPrivateKeyPem = builder.AddParameter("github-app-private-key-pem", secret: true);
 var githubAppCallbackBaseUri = builder.AddParameter("github-app-callback-base-uri");
-var internalApiToken = builder.AddParameter("internal-api-token", secret: true);
 
 var apiService = builder.AddProject<Projects.HugoMatters_ApiService>("apiservice")
     .WithHttpHealthCheck("/health")
     .WithEnvironment("GitHubApp__AppId", githubAppId)
-    .WithEnvironment("GitHubApp__PrivateKeyPem", githubAppPrivateKeyPem)
-    .WithEnvironment("InternalApi__SharedSecret", internalApiToken);
+    .WithEnvironment("GitHubApp__PrivateKeyPem", githubAppPrivateKeyPem);
 
 builder.AddProject<Projects.HugoMatters_Web>("webfrontend")
     .WithExternalHttpEndpoints()
@@ -20,7 +18,6 @@ builder.AddProject<Projects.HugoMatters_Web>("webfrontend")
     .WithEnvironment("GitHubAuth__HostedGitHubAppClientId", githubAppClientId)
     .WithEnvironment("GitHubAuth__HostedGitHubAppClientSecret", githubAppClientSecret)
     .WithEnvironment("GitHubAuth__HostedSignInCallbackBaseUri", githubAppCallbackBaseUri)
-    .WithEnvironment("InternalApi__SharedSecret", internalApiToken)
     .WaitFor(apiService);
 
 builder.Build().Run();

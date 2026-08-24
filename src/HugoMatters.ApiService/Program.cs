@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using HugoMatters.ApiService.Endpoints;
-using HugoMatters.ApiService.Security;
 using HugoMatters.Core.Json;
 using HugoMatters.Infrastructure;
 
@@ -9,9 +8,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
-
-builder.Services.Configure<InternalApiOptions>(
-    builder.Configuration.GetSection(InternalApiOptions.SectionName));
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -31,8 +27,6 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-
-app.UseMiddleware<InternalApiAuthenticationMiddleware>();
 
 app.MapGet("/", () => Results.Ok(new { status = "Hugo Matters API is running." }));
 

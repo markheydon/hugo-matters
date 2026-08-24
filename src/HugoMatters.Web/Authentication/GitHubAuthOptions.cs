@@ -26,11 +26,15 @@ public sealed class GitHubAuthOptions
 
     public string HostedOwnerLoginClaimType { get; set; } = GitHubAuthClaimTypes.OwnerLogin;
 
+    public string HostedAccessTokenClaimType { get; set; } = GitHubAuthClaimTypes.AccessToken;
+
     public string HostedInstallationIdClaimType { get; set; } = GitHubAuthClaimTypes.InstallationId;
 
     public string HostedTokenExpiresAtClaimType { get; set; } = GitHubAuthClaimTypes.TokenExpiresAt;
 
-    public string HostedSessionKeyClaimType { get; set; } = GitHubAuthClaimTypes.SessionKey;
+    public string HostedRefreshTokenClaimType { get; set; } = GitHubAuthClaimTypes.RefreshToken;
+
+    public string HostedRefreshTokenExpiresAtClaimType { get; set; } = GitHubAuthClaimTypes.RefreshTokenExpiresAt;
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(HostedGitHubAppClientId)

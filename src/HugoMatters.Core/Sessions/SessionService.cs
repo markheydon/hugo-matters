@@ -105,7 +105,6 @@ public sealed class SessionService
             cancellationToken);
 
         // GitHub rejects pull requests when head and base point at the same commit.
-        // A small marker file under .hugo-matters/ creates a non-empty diff; it appears in the session PR.
         await _gitHubRepository.CreateCommitAsync(
             site.InstallationId,
             site.OwnerLogin,

@@ -78,6 +78,14 @@ public sealed class HugoMattersApiClient(HttpClient httpClient)
             "/api/session/resume",
             new ResumeSessionRequestDto { PullRequestNumber = pullRequestNumber },
             cancellationToken);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var existing = await response.Content.ReadFromJsonAsync<EditingSessionDto>(cancellationToken);
+            if (existing is not null)
+            {
+                return existing;
+            }
+        }
 
         await EnsureSuccessOrThrow(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<EditingSessionDto>(cancellationToken))!;
@@ -197,16 +205,6 @@ public sealed class HugoMattersApiClient(HttpClient httpClient)
     public async Task<SitePreviewDto> StartSitePreviewAsync(CancellationToken cancellationToken = default)
     {
         using var response = await httpClient.PostAsync("/api/preview/site", null, cancellationToken);
-        if (response.StatusCode == HttpStatusCode.Conflict)
-        {
-            // Older API returned 409 with the existing preview body; treat as success when present.
-            var existing = await response.Content.ReadFromJsonAsync<SitePreviewDto>(cancellationToken);
-            if (existing is not null)
-            {
-                return existing;
-            }
-        }
-
         await EnsureSuccessOrThrow(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<SitePreviewDto>(cancellationToken))!;
     }
@@ -265,17 +263,7 @@ public sealed class HugoMattersApiClient(HttpClient httpClient)
             // Ignore parse failures; fall back to status text.
         }
 
-        var message = error?.Message;
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            message = response.StatusCode switch
-            {
-                HttpStatusCode.Conflict => "The request conflicts with the current session or preview state.",
-                HttpStatusCode.Unauthorized => "Unauthorized.",
-                _ => response.ReasonPhrase ?? "Request failed",
-            };
-        }
-
+        var message = error?.Message ?? response.ReasonPhrase ?? "Request failed";
         throw new ApiException(message, error?.Code, (int)response.StatusCode);
     }
 }

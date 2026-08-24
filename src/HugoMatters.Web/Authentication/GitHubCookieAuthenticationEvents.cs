@@ -32,35 +32,20 @@ internal sealed class GitHubCookieAuthenticationEvents : CookieAuthenticationEve
             return;
         }
 
-        var sessionKey = context.Principal.FindFirst(_authOptions.HostedSessionKeyClaimType)?.Value;
-        if (string.IsNullOrWhiteSpace(sessionKey))
-        {
-            MarkSessionExpired(context);
-            return;
-        }
-
-        var tokenStore = context.HttpContext.RequestServices.GetService<GitHubAuthTokenStore>();
-        if (tokenStore is null)
-        {
-            MarkSessionExpired(context);
-            return;
-        }
-
-        var storedSession = tokenStore.TryGetSession(sessionKey);
-        if (storedSession is null)
-        {
-            MarkSessionExpired(context);
-            return;
-        }
-
-        var expiresAtUtc = storedSession.TokenExpiresAtUtc;
-        if (expiresAtUtc is null
-            || expiresAtUtc > DateTimeOffset.UtcNow.Add(RefreshSkew))
+        var expiresAtClaim = context.Principal.FindFirst(_authOptions.HostedTokenExpiresAtClaimType)?.Value;
+        if (string.IsNullOrWhiteSpace(expiresAtClaim)
+            || !DateTimeOffset.TryParse(expiresAtClaim, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var expiresAtUtc))
         {
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(storedSession.RefreshToken))
+        if (expiresAtUtc > DateTimeOffset.UtcNow.Add(RefreshSkew))
+        {
+            return;
+        }
+
+        var refreshToken = context.Principal.FindFirst(_authOptions.HostedRefreshTokenClaimType)?.Value;
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
             MarkSessionExpired(context);
             return;
@@ -72,40 +57,40 @@ internal sealed class GitHubCookieAuthenticationEvents : CookieAuthenticationEve
             return;
         }
 
-        var refreshLock = tokenStore.GetRefreshLock(sessionKey);
-        await refreshLock.WaitAsync(context.HttpContext.RequestAborted).ConfigureAwait(false);
+        var ownerLogin = context.Principal.FindFirst(_authOptions.HostedOwnerLoginClaimType)?.Value ?? string.Empty;
+        long? installationId = null;
+        var installationClaim = context.Principal.FindFirst(_authOptions.HostedInstallationIdClaimType)?.Value;
+        if (!string.IsNullOrWhiteSpace(installationClaim) && long.TryParse(installationClaim, out var parsedInstallationId))
+        {
+            installationId = parsedInstallationId;
+        }
+
+        DateTimeOffset? refreshExpiresAtUtc = null;
+        var refreshExpiresClaim = context.Principal.FindFirst(_authOptions.HostedRefreshTokenExpiresAtClaimType)?.Value;
+        if (!string.IsNullOrWhiteSpace(refreshExpiresClaim)
+            && DateTimeOffset.TryParse(refreshExpiresClaim, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedRefreshExpires))
+        {
+            refreshExpiresAtUtc = parsedRefreshExpires;
+        }
+
+        var currentSession = new GitHubAuthSession(
+            ownerLogin,
+            context.Principal.FindFirst(_authOptions.HostedAccessTokenClaimType)?.Value ?? string.Empty,
+            installationId,
+            expiresAtUtc,
+            refreshToken,
+            refreshExpiresAtUtc);
+
         try
         {
-            storedSession = tokenStore.TryGetSession(sessionKey);
-            if (storedSession is null)
-            {
-                MarkSessionExpired(context);
-                return;
-            }
-
-            expiresAtUtc = storedSession.TokenExpiresAtUtc;
-            if (expiresAtUtc is not null && expiresAtUtc > DateTimeOffset.UtcNow.Add(RefreshSkew))
-            {
-                context.ReplacePrincipal(gateway.CreatePrincipal(storedSession, sessionKey));
-                return;
-            }
-
-            try
-            {
-                var refreshedSession = await gateway.RefreshSessionAsync(storedSession, context.HttpContext.RequestAborted)
-                    .ConfigureAwait(false);
-                tokenStore.UpdateSession(sessionKey, refreshedSession);
-                context.ReplacePrincipal(gateway.CreatePrincipal(refreshedSession, sessionKey));
-                context.ShouldRenew = true;
-            }
-            catch
-            {
-                MarkSessionExpired(context);
-            }
+            var refreshedSession = await gateway.RefreshSessionAsync(currentSession, context.HttpContext.RequestAborted).ConfigureAwait(false);
+            var principal = gateway.CreatePrincipal(refreshedSession);
+            context.ReplacePrincipal(principal);
+            context.ShouldRenew = true;
         }
-        finally
+        catch
         {
-            refreshLock.Release();
+            MarkSessionExpired(context);
         }
     }
 

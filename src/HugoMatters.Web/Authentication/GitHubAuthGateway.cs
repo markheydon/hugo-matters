@@ -42,21 +42,15 @@ public sealed class GitHubAuthGateway(
             });
     }
 
-    internal async Task<GitHubAuthSession> ExchangeCodeForSessionAsync(
-        string code,
-        string redirectUri,
-        CancellationToken cancellationToken)
+    internal async Task<GitHubAuthSession> ExchangeCodeForSessionAsync(string code, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        ArgumentException.ThrowIfNullOrWhiteSpace(redirectUri);
         EnsureSignInConfiguration();
 
         var client = _httpClientFactory.CreateClient(GitHubAuthClientName);
-        var tokenResponse = await ExchangeCodeForAccessTokenAsync(client, code, redirectUri, cancellationToken)
-            .ConfigureAwait(false);
+        var tokenResponse = await ExchangeCodeForAccessTokenAsync(client, code, cancellationToken).ConfigureAwait(false);
         var user = await GetAuthenticatedUserAsync(client, tokenResponse.AccessToken, cancellationToken).ConfigureAwait(false);
-        var installationId = await ResolveInstallationIdAsync(client, tokenResponse.AccessToken, user.Login, cancellationToken)
-            .ConfigureAwait(false);
+        var installationId = await ResolveInstallationIdAsync(client, tokenResponse.AccessToken, user.Login, cancellationToken).ConfigureAwait(false);
 
         return new GitHubAuthSession(
             user.Login,
@@ -65,26 +59,6 @@ public sealed class GitHubAuthGateway(
             ComputeExpiresAtUtc(tokenResponse.ExpiresInSeconds),
             tokenResponse.RefreshToken ?? string.Empty,
             ComputeExpiresAtUtc(tokenResponse.RefreshTokenExpiresInSeconds));
-    }
-
-    /// <summary>
-    /// Lists GitHub App installations visible to the signed-in user.
-    /// </summary>
-    internal async Task<IReadOnlyList<GitHubUserInstallation>> ListUserInstallationsAsync(
-        string accessToken,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
-
-        var client = _httpClientFactory.CreateClient(GitHubAuthClientName);
-        var installations = await GetUserInstallationsAsync(client, accessToken, cancellationToken).ConfigureAwait(false);
-
-        return installations
-            .Select(installation => new GitHubUserInstallation(
-                installation.Id,
-                installation.Account?.Login ?? $"installation-{installation.Id}"))
-            .OrderBy(installation => installation.AccountLogin, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
     }
 
     /// <summary>
@@ -154,8 +128,7 @@ public sealed class GitHubAuthGateway(
         EnsureSignInConfiguration();
 
         var client = _httpClientFactory.CreateClient(GitHubAuthClientName);
-        var tokenResponse = await ExchangeRefreshTokenForAccessTokenAsync(client, currentSession.RefreshToken, cancellationToken)
-            .ConfigureAwait(false);
+        var tokenResponse = await ExchangeRefreshTokenForAccessTokenAsync(client, currentSession.RefreshToken, cancellationToken).ConfigureAwait(false);
 
         var refreshToken = !string.IsNullOrWhiteSpace(tokenResponse.RefreshToken)
             ? tokenResponse.RefreshToken
@@ -170,17 +143,16 @@ public sealed class GitHubAuthGateway(
             ComputeExpiresAtUtc(tokenResponse.RefreshTokenExpiresInSeconds));
     }
 
-    internal ClaimsPrincipal CreatePrincipal(GitHubAuthSession session, string sessionKey)
+    internal ClaimsPrincipal CreatePrincipal(GitHubAuthSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentException.ThrowIfNullOrWhiteSpace(sessionKey);
 
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, session.OwnerLogin),
             new(ClaimTypes.Name, session.OwnerLogin),
             new(_authOptions.HostedOwnerLoginClaimType, session.OwnerLogin),
-            new(_authOptions.HostedSessionKeyClaimType, sessionKey),
+            new(_authOptions.HostedAccessTokenClaimType, session.AccessToken),
         };
 
         if (!string.IsNullOrWhiteSpace(_authOptions.HostedInstallationIdClaimType) && session.InstallationId is { } installationId)
@@ -193,21 +165,23 @@ public sealed class GitHubAuthGateway(
             claims.Add(new Claim(_authOptions.HostedTokenExpiresAtClaimType, expiresAtUtc.ToString("O")));
         }
 
+        if (!string.IsNullOrWhiteSpace(_authOptions.HostedRefreshTokenClaimType) && !string.IsNullOrWhiteSpace(session.RefreshToken))
+        {
+            claims.Add(new Claim(_authOptions.HostedRefreshTokenClaimType, session.RefreshToken));
+        }
+
+        if (!string.IsNullOrWhiteSpace(_authOptions.HostedRefreshTokenExpiresAtClaimType) && session.RefreshTokenExpiresAtUtc is { } refreshTokenExpiresAtUtc)
+        {
+            claims.Add(new Claim(_authOptions.HostedRefreshTokenExpiresAtClaimType, refreshTokenExpiresAtUtc.ToString("O")));
+        }
+
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         return new ClaimsPrincipal(identity);
     }
 
-    private async Task<AccessTokenResponseDto> ExchangeCodeForAccessTokenAsync(
-        HttpClient client,
-        string code,
-        string redirectUri,
-        CancellationToken cancellationToken)
+    private async Task<AccessTokenResponseDto> ExchangeCodeForAccessTokenAsync(HttpClient client, string code, CancellationToken cancellationToken)
     {
-        using var request = CreateTokenEndpointRequest(new Dictionary<string, string>
-        {
-            ["code"] = code,
-            ["redirect_uri"] = redirectUri,
-        });
+        using var request = CreateTokenEndpointRequest(new Dictionary<string, string> { ["code"] = code });
         using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
         EnsureSuccessStatusCode(response);
 
@@ -284,45 +258,22 @@ public sealed class GitHubAuthGateway(
 
     private static async Task<long?> ResolveInstallationIdAsync(HttpClient client, string accessToken, string ownerLogin, CancellationToken cancellationToken)
     {
-        var installations = await GetUserInstallationsAsync(client, accessToken, cancellationToken).ConfigureAwait(false);
-
-        if (installations.Count == 0)
-        {
-            return null;
-        }
-
-        if (installations.Count == 1)
-        {
-            return installations[0].Id;
-        }
-
-        var matchingInstallations = installations
-            .Where(installation => string.Equals(installation.Account?.Login, ownerLogin, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (matchingInstallations.Count == 1)
-        {
-            return matchingInstallations[0].Id;
-        }
-
-        // Multiple installations and no unambiguous match (e.g. org installs) — user must pick on Connect.
-        return null;
-    }
-
-    private static async Task<List<InstallationDto>> GetUserInstallationsAsync(
-        HttpClient client,
-        string accessToken,
-        CancellationToken cancellationToken)
-    {
         using var request = CreateGitHubApiRequest(HttpMethod.Get, "/user/installations", accessToken);
         using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
         EnsureSuccessStatusCode(response);
 
-        var installations = await response.Content.ReadFromJsonAsync<UserInstallationsResponseDto>(JsonOptions, cancellationToken)
-            .ConfigureAwait(false)
+        var installations = await response.Content.ReadFromJsonAsync<UserInstallationsResponseDto>(JsonOptions, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("GitHub sign-in failed because the installations response was empty.");
 
-        return installations.Installations;
+        if (installations.Installations.Count == 0)
+        {
+            return null;
+        }
+
+        var matchingInstallation = installations.Installations
+            .FirstOrDefault(installation => string.Equals(installation.Account?.Login, ownerLogin, StringComparison.OrdinalIgnoreCase));
+
+        return matchingInstallation?.Id ?? installations.Installations[0].Id;
     }
 
     private static HttpRequestMessage CreateGitHubApiRequest(HttpMethod method, string path, string accessToken)

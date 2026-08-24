@@ -157,30 +157,11 @@
 
         try
         {
-            // Clear a stuck Starting/Failed preview so start can run again.
-            if (preview?.Status is "Starting" or "Failed")
-            {
-                try
-                {
-                    await Api.StopSitePreviewAsync();
-                    preview = null;
-                }
-                catch (ApiException)
-                {
-                    // Continue; start may still succeed if the API treats the existing preview as Failed.
-                }
-            }
-
             preview = await progress.RunAsync(
                 () => Api.StartSitePreviewAsync(),
                 "Preview ready.",
                 stepDelayMs: 1100,
                 completedHoldMs: 200);
-
-            if (preview.Status is "Starting")
-            {
-                preview = await WaitForPreviewReadyAsync(preview);
-            }
 
             if (preview.Status is "Failed")
             {
@@ -188,34 +169,13 @@
                     preview.ErrorMessage ?? "Site preview failed to start.",
                     Banner.BannerVariant.Error);
             }
-            else if (preview.Status is "Running")
+            else if (preview.Status is "Running" or "Starting")
             {
                 ShowBanner("Site preview started.", Banner.BannerVariant.Success);
             }
             else
             {
                 ShowBanner($"Preview status: {preview.Status}.", Banner.BannerVariant.Info);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // HttpClient resilience/timeouts surface as cancellation; poll for the result instead of crashing Blazor.
-            ShowBanner("Preview start is still running; checking status…", Banner.BannerVariant.Info);
-            try
-            {
-                preview = await WaitForPreviewReadyAsync(preview ?? new SitePreviewDto { Status = "Starting" });
-                if (preview.Status is "Running")
-                {
-                    ShowBanner("Site preview started.", Banner.BannerVariant.Success);
-                }
-                else if (preview.Status is "Failed")
-                {
-                    ShowBanner(preview.ErrorMessage ?? "Site preview failed to start.", Banner.BannerVariant.Error);
-                }
-            }
-            catch (ApiException ex)
-            {
-                ShowBanner(ex.Message, Banner.BannerVariant.Error);
             }
         }
         catch (ApiException ex)
@@ -230,44 +190,12 @@
                 // Keep prior preview state if refresh fails.
             }
         }
-        catch (Exception ex)
-        {
-            ShowBanner($"Site preview failed: {ex.Message}", Banner.BannerVariant.Error);
-        }
         finally
         {
             await progress.DisposeAsync();
             progress = null;
             starting = false;
         }
-    }
-
-    private async Task<SitePreviewDto> WaitForPreviewReadyAsync(SitePreviewDto current)
-    {
-        for (var attempt = 0; attempt < 90; attempt++)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(2));
-            try
-            {
-                var latest = await Api.GetSitePreviewAsync();
-                if (latest is null)
-                {
-                    return current;
-                }
-
-                current = latest;
-                if (current.Status is not "Starting")
-                {
-                    return current;
-                }
-            }
-            catch (ApiException)
-            {
-                // Keep polling through transient API errors while Hugo boots.
-            }
-        }
-
-        return current;
     }
 
     private async Task StopPreview()
