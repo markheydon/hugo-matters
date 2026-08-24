@@ -51,16 +51,54 @@ public sealed class GitHubAppClient : IGitHubRepository
             installationId,
             async client =>
             {
-                var repository = await client.Repository.Get(owner, repo);
+                // Custom payload so we can read has_pull_requests (not on Octokit.Repository yet).
+                var response = await client.Connection
+                    .Get<GitHubRepositoryApiPayload>(ApiUrls.Repository(owner, repo), null)
+                    .ConfigureAwait(false);
+                var payload = response.Body
+                    ?? throw new InvalidOperationException("GitHub returned an empty repository response.");
+
+                if (string.IsNullOrWhiteSpace(payload.Owner?.Login) || string.IsNullOrWhiteSpace(payload.Name))
+                {
+                    throw new InvalidOperationException("GitHub repository response was missing owner or name.");
+                }
+
+                var hasPullRequests = payload.HasPullRequests ?? false;
+
                 return new GitHubRepositoryInfo
                 {
-                    OwnerLogin = repository.Owner.Login,
-                    RepoName = repository.Name,
-                    DefaultBranch = repository.DefaultBranch,
-                    HtmlUrl = repository.HtmlUrl,
+                    OwnerLogin = payload.Owner.Login,
+                    RepoName = payload.Name,
+                    DefaultBranch = string.IsNullOrWhiteSpace(payload.DefaultBranch) ? "main" : payload.DefaultBranch,
+                    HtmlUrl = payload.HtmlUrl,
+                    HasPullRequests = hasPullRequests,
                 };
             },
             cancellationToken);
+
+    private sealed class GitHubRepositoryApiPayload
+    {
+        public GitHubRepositoryOwnerApiPayload? Owner { get; set; }
+
+        public string? Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("default_branch")]
+        public string? DefaultBranch { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("html_url")]
+        public string? HtmlUrl { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("has_issues")]
+        public bool? HasIssues { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("has_pull_requests")]
+        public bool? HasPullRequests { get; set; }
+    }
+
+    private sealed class GitHubRepositoryOwnerApiPayload
+    {
+        public string? Login { get; set; }
+    }
 
     /// <inheritdoc />
     public Task<string> CreateBranchAsync(
@@ -94,18 +132,86 @@ public sealed class GitHubAppClient : IGitHubRepository
             installationId,
             async client =>
             {
-                var pr = await client.PullRequest.Create(
-                    owner,
-                    repo,
-                    new NewPullRequest(title, head, baseBranch));
-
-                return new GitHubPullRequestInfo
+                try
                 {
-                    Number = pr.Number,
-                    HtmlUrl = pr.HtmlUrl,
-                };
+                    var pr = await client.PullRequest.Create(
+                        owner,
+                        repo,
+                        new NewPullRequest(title, head, baseBranch));
+
+                    return new GitHubPullRequestInfo
+                    {
+                        Number = pr.Number,
+                        HtmlUrl = pr.HtmlUrl,
+                        Title = pr.Title,
+                        HeadRef = pr.Head?.Ref,
+                        BaseRef = pr.Base?.Ref,
+                    };
+                }
+                catch (ApiValidationException ex)
+                {
+                    var detail = ex.ApiError?.Message ?? ex.Message;
+                    if (ex.ApiError?.Errors is { Count: > 0 })
+                    {
+                        detail = string.Join(
+                            "; ",
+                            ex.ApiError.Errors.Select(error => error.Message).Where(static message => !string.IsNullOrWhiteSpace(message)));
+                    }
+
+                    throw new InvalidOperationException(
+                        string.IsNullOrWhiteSpace(detail)
+                            ? "GitHub rejected the pull request (validation failed)."
+                            : $"GitHub rejected the pull request: {detail}",
+                        ex);
+                }
             },
             cancellationToken);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<GitHubPullRequestInfo>> ListOpenPullRequestsAsync(
+        long installationId,
+        string owner,
+        string repo,
+        CancellationToken cancellationToken = default) =>
+        ExecuteAsync(
+            installationId,
+            async client =>
+            {
+                var pullRequests = await client.PullRequest.GetAllForRepository(
+                    owner,
+                    repo,
+                    new PullRequestRequest
+                    {
+                        State = ItemStateFilter.Open,
+                        SortProperty = PullRequestSort.Updated,
+                        SortDirection = SortDirection.Descending,
+                    });
+
+                return (IReadOnlyList<GitHubPullRequestInfo>)pullRequests
+                    .Select(pr => new GitHubPullRequestInfo
+                    {
+                        Number = pr.Number,
+                        HtmlUrl = pr.HtmlUrl,
+                        Title = pr.Title,
+                        HeadRef = NormalizeHeadRef(pr.Head?.Ref, owner),
+                        BaseRef = pr.Base?.Ref,
+                    })
+                    .ToList();
+            },
+            cancellationToken);
+
+    private static string? NormalizeHeadRef(string? headRef, string owner)
+    {
+        if (string.IsNullOrWhiteSpace(headRef))
+        {
+            return headRef;
+        }
+
+        var prefix = owner + ":";
+        return headRef.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? headRef[prefix.Length..]
+            : headRef;
+    }
 
     /// <inheritdoc />
     public Task<GitHubMergeResult> MergePullRequestAsync(
@@ -412,7 +518,21 @@ public sealed class GitHubAppClient : IGitHubRepository
             var client = await CreateInstallationClientAsync(installationId, cancellationToken);
             return await action(client);
         }
-        catch (ApiException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        catch (ForbiddenException ex)
+        {
+            // Missing App permission (e.g. Pull requests: write) — not the same as a revoked installation.
+            _logger.LogWarning(
+                ex,
+                "GitHub App is forbidden from performing an operation for installation {InstallationId}: {Message}",
+                installationId,
+                ex.Message);
+            throw new InvalidOperationException(
+                "GitHub refused to create a pull request. " +
+                "Enable Pull requests on the repository (Settings → General → Features → Pull requests) " +
+                "and confirm the App has Pull requests: Read and write.",
+                ex);
+        }
+        catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
         {
             _installationTokens.TryRemove(installationId, out _);
             _logger.LogWarning(
@@ -472,6 +592,16 @@ public sealed class GitHubAppClient : IGitHubRepository
 
             _installationTokens[installationId] = new CachedInstallationToken(response.Token, expiresAt);
             return response.Token;
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "GitHub App installation {InstallationId} was not found for the configured App ID. App ID and private key must belong to the same GitHub App as the Web client credentials.",
+                installationId);
+            throw new InvalidOperationException(
+                "GitHub App credentials do not match this installation. Confirm Parameters:github-app-id and Parameters:github-app-private-key-pem are from the same GitHub App as the Client ID used for sign-in (GitHub returns “Integration not found” when they disagree).",
+                ex);
         }
         catch (ApiException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {

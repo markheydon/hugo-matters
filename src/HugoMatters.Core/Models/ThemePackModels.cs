@@ -20,6 +20,17 @@ public sealed class FieldDefinition
     /// <summary>Default value when creating new content.</summary>
     public object? Default { get; init; }
 
+    /// <summary>
+    /// Alternate config keys that map into <see cref="Key"/> when reading Hugo config
+    /// (e.g. <c>languageCode</c> → <c>locale</c>).
+    /// </summary>
+    public IReadOnlyList<string> SourceKeys { get; init; } = [];
+
+    /// <summary>
+    /// Field origin for UI grouping: <c>hugo</c> (core site config) or <c>theme</c> (theme-pack params).
+    /// </summary>
+    public string Scope { get; init; } = "theme";
+
     /// <summary>UI primitive hint (text, textarea, toggle, date, tags, select).</summary>
     public string? EditorWidget { get; init; }
 

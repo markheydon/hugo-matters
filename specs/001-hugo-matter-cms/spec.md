@@ -27,18 +27,19 @@
 
 ### User Story 1 - Connect a Hugo site repository (Priority: P1)
 
-A solo site owner authorizes Hugo Matters to access their Hugo site's GitHub-hosted repository (public or private). After a successful connection, they can start editing without manually cloning or hand-editing files in the repository.
+A solo site owner signs in with GitHub, installs the Hugo Matters GitHub App when needed, and binds one Hugo site repository (public or private). The CMS editor chrome is not available until GitHub sign-in succeeds; repository binding happens only after a valid App installation id is known.
 
-**Why this priority**: Nothing else works until the product can securely reach the owner's content repository under the owner's control.
+**Why this priority**: Nothing else works until the owner is authenticated to GitHub and the product can securely reach the content repository under the owner's control.
 
-**Independent Test**: An owner with a qualifying Hugo repository can complete authorization and see the site as connected; without connection, editing sessions cannot start.
+**Independent Test**: An unauthenticated visitor sees only the welcome/sign-in experience. After sign-in and repository binding, the site shows as connected; without connection, editing sessions cannot start.
 
 **Acceptance Scenarios**:
 
-1. **Given** an owner has a Hugo site in a GitHub repository they control, **When** they complete the secure authorization flow granting repository access, **Then** the product records a successful connection and the owner can proceed to start an editing session.
-2. **Given** an owner starts connection for a private repository, **When** they authorize access, **Then** the product gains only the least privilege needed for editing and publishing through the repository workflow, and private content is treated with at least the same care as public content.
-3. **Given** an owner cancels or denies authorization, **When** the flow ends, **Then** the product does not gain repository access and does not present the site as connected.
-4. **Given** a connected site, **When** the owner later revokes authorization through the platform they control, **Then** subsequent repository operations fail safely and the product does not silently succeed with stale access.
+1. **Given** a visitor opens Hugo Matters without a GitHub session, **When** they attempt to use the CMS, **Then** they are guided to sign in with GitHub and do not see the full editor shell.
+2. **Given** an owner signs in with GitHub and has installed the App, **When** they enter owner/repo and connect, **Then** the product records a successful connection and the owner can proceed to start an editing session.
+3. **Given** an owner starts connection for a private repository, **When** they authorize access, **Then** the product gains only the least privilege needed for editing and publishing through the repository workflow, and private content is treated with at least the same care as public content.
+4. **Given** an owner cancels or denies GitHub sign-in, **When** the flow ends, **Then** the product does not gain repository access and does not present the site as connected or show the CMS chrome.
+5. **Given** a connected site, **When** the owner later revokes authorization through the platform they control, **Then** subsequent repository operations fail safely and the product does not silently succeed with stale access.
 
 ---
 
@@ -194,7 +195,7 @@ The product's connect → session → edit → preview → publish experience is
 
 ### Functional Requirements
 
-- **FR-001**: Product MUST allow a solo owner to connect exactly one Hugo site whose content lives in a GitHub-hosted Git repository (public or private) through a secure authorization the owner controls.
+- **FR-001**: Product MUST require the owner to sign in with GitHub before any CMS UI is available, then allow connecting exactly one Hugo site whose content lives in a GitHub-hosted Git repository (public or private) through a secure GitHub App installation the owner controls. User OAuth and session establishment MUST occur in the Web app; repository binding MUST use the installation id obtained during sign-in.
 - **FR-002**: Product MUST use least-privilege access to the connected repository and MUST protect credentials, tokens, and secrets (never commit them; never log them; never embed them in generated site content).
 - **FR-003**: Product MUST validate and constrain untrusted input related to paths, content, configuration, and preview.
 - **FR-004**: Product MUST allow the owner to start an editing session that maps to a branch plus a single open pull request against the repository's default branch (the integration/publish target, regardless of whether it is named `main`).

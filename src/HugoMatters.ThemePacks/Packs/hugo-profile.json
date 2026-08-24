@@ -138,37 +138,44 @@
       "label": "Site title",
       "dataType": "string",
       "required": true,
+      "scope": "hugo",
       "editorWidget": "text"
     },
     {
       "key": "baseURL",
       "label": "Base URL",
       "dataType": "string",
+      "scope": "hugo",
       "editorWidget": "text"
     },
     {
-      "key": "languageCode",
-      "label": "Language code",
+      "key": "locale",
+      "label": "Language / locale",
       "dataType": "string",
-      "default": "en-us",
+      "scope": "hugo",
+      "sourceKeys": ["languageCode"],
       "editorWidget": "text"
     },
     {
       "key": "params.hero.title",
       "label": "Hero title",
       "dataType": "string",
+      "scope": "theme",
       "editorWidget": "text"
     },
     {
       "key": "params.hero.subtitle",
       "label": "Hero subtitle",
       "dataType": "string",
+      "scope": "theme",
       "editorWidget": "text"
     },
     {
-      "key": "params.hero.intro",
+      "key": "params.hero.content",
       "label": "Hero intro",
       "dataType": "string",
+      "scope": "theme",
+      "sourceKeys": ["params.hero.intro"],
       "editorWidget": "textarea"
     }
   ]

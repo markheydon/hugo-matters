@@ -22,6 +22,9 @@ public sealed class ContentItemSummary
 
     /// <summary>Whether not yet saved to the session branch.</summary>
     public bool IsNew { get; init; }
+
+    /// <summary>Whether the buffer has local edits not yet saved to the session branch.</summary>
+    public bool HasUnsavedLocalEdits { get; init; }
 }
 
 /// <summary>

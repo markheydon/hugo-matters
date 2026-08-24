@@ -1,5 +1,8 @@
 @page "/preview"
-@rendermode InteractiveServer
+@inherits DeferredLoadPageBase
+@implements IAsyncDisposable
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
 @inject HugoMattersApiClient Api
 
 <PageTitle>Site Preview</PageTitle>
@@ -21,6 +24,16 @@
         <div class="mt-8 flex items-center gap-2 text-slate-500">
             <Icon Name="loader" CssClass="animate-spin" />
             <span>Loading preview status…</span>
+        </div>
+    }
+    else if (starting && progress is not null)
+    {
+        <div class="mt-8">
+            <ActionProgressPanel
+                Title="Starting site preview"
+                Message="@progress.Message"
+                Percent="@progress.Percent"
+                Hint="Downloads the saved branch snapshot and starts a local Hugo container." />
         </div>
     }
     else
@@ -81,11 +94,11 @@
                 }
                 else
                 {
-                    <Button IconName="play" OnClick="StartPreview" Loading="@starting">
+                    <Button IconName="play" OnClick="StartPreview" Disabled="@starting">
                         Start preview
                     </Button>
                 }
-                <Button Variant="Button.ButtonVariant.Secondary" IconName="loader" OnClick="RefreshStatus" Loading="@refreshing">
+                <Button Variant="Button.ButtonVariant.Secondary" IconName="loader" OnClick="RefreshStatus" Loading="@refreshing" Disabled="@starting">
                     Refresh status
                 </Button>
             </div>
@@ -94,6 +107,15 @@
 </div>
 
 @code {
+    private static readonly string[] StartProgressMessages =
+    [
+        "Resolving session branch…",
+        "Downloading site snapshot…",
+        "Preparing preview workspace…",
+        "Starting Hugo container…",
+        "Waiting for preview to become ready…",
+    ];
+
     private SitePreviewDto? preview;
     private bool loading = true;
     private bool starting;
@@ -101,11 +123,9 @@
     private bool refreshing;
     private string? bannerMessage;
     private Banner.BannerVariant bannerVariant = Banner.BannerVariant.Info;
+    private SteppedProgressRunner? progress;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await RefreshStatus();
-    }
+    protected override Task LoadPageAsync() => RefreshStatus();
 
     private async Task RefreshStatus()
     {
@@ -131,20 +151,123 @@
     {
         starting = true;
         bannerMessage = null;
+        progress = new SteppedProgressRunner(
+            StartProgressMessages,
+            () => InvokeAsync(StateHasChanged));
 
         try
         {
-            preview = await Api.StartSitePreviewAsync();
-            ShowBanner("Site preview started.", Banner.BannerVariant.Success);
+            // Clear a stuck Starting/Failed preview so start can run again.
+            if (preview?.Status is "Starting" or "Failed")
+            {
+                try
+                {
+                    await Api.StopSitePreviewAsync();
+                    preview = null;
+                }
+                catch (ApiException)
+                {
+                    // Continue; start may still succeed if the API treats the existing preview as Failed.
+                }
+            }
+
+            preview = await progress.RunAsync(
+                () => Api.StartSitePreviewAsync(),
+                "Preview ready.",
+                stepDelayMs: 1100,
+                completedHoldMs: 200);
+
+            if (preview.Status is "Starting")
+            {
+                preview = await WaitForPreviewReadyAsync(preview);
+            }
+
+            if (preview.Status is "Failed")
+            {
+                ShowBanner(
+                    preview.ErrorMessage ?? "Site preview failed to start.",
+                    Banner.BannerVariant.Error);
+            }
+            else if (preview.Status is "Running")
+            {
+                ShowBanner("Site preview started.", Banner.BannerVariant.Success);
+            }
+            else
+            {
+                ShowBanner($"Preview status: {preview.Status}.", Banner.BannerVariant.Info);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // HttpClient resilience/timeouts surface as cancellation; poll for the result instead of crashing Blazor.
+            ShowBanner("Preview start is still running; checking status…", Banner.BannerVariant.Info);
+            try
+            {
+                preview = await WaitForPreviewReadyAsync(preview ?? new SitePreviewDto { Status = "Starting" });
+                if (preview.Status is "Running")
+                {
+                    ShowBanner("Site preview started.", Banner.BannerVariant.Success);
+                }
+                else if (preview.Status is "Failed")
+                {
+                    ShowBanner(preview.ErrorMessage ?? "Site preview failed to start.", Banner.BannerVariant.Error);
+                }
+            }
+            catch (ApiException ex)
+            {
+                ShowBanner(ex.Message, Banner.BannerVariant.Error);
+            }
         }
         catch (ApiException ex)
         {
             ShowBanner(ex.Message, Banner.BannerVariant.Error);
+            try
+            {
+                preview = await Api.GetSitePreviewAsync();
+            }
+            catch (ApiException)
+            {
+                // Keep prior preview state if refresh fails.
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowBanner($"Site preview failed: {ex.Message}", Banner.BannerVariant.Error);
         }
         finally
         {
+            await progress.DisposeAsync();
+            progress = null;
             starting = false;
         }
+    }
+
+    private async Task<SitePreviewDto> WaitForPreviewReadyAsync(SitePreviewDto current)
+    {
+        for (var attempt = 0; attempt < 90; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            try
+            {
+                var latest = await Api.GetSitePreviewAsync();
+                if (latest is null)
+                {
+                    return current;
+                }
+
+                current = latest;
+                if (current.Status is not "Starting")
+                {
+                    return current;
+                }
+            }
+            catch (ApiException)
+            {
+                // Keep polling through transient API errors while Hugo boots.
+            }
+        }
+
+        return current;
     }
 
     private async Task StopPreview()
@@ -184,5 +307,14 @@
             "Failed" => "bg-red-100 text-red-800",
             _ => "bg-slate-100 text-slate-600",
         });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (progress is not null)
+        {
+            await progress.DisposeAsync();
+            progress = null;
+        }
     }
 }

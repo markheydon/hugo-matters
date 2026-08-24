@@ -16,6 +16,11 @@ public sealed class GitHubRepositoryInfo
 
     /// <summary>HTML URL of the repository.</summary>
     public string? HtmlUrl { get; init; }
+
+    /// <summary>
+    /// Whether the repository has Pull requests enabled (GitHub Features setting).
+    /// </summary>
+    public bool HasPullRequests { get; init; } = true;
 }
 
 /// <summary>
@@ -28,6 +33,15 @@ public sealed class GitHubPullRequestInfo
 
     /// <summary>Pull request HTML URL.</summary>
     public required string HtmlUrl { get; init; }
+
+    /// <summary>Pull request title.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>Head branch name (without owner prefix).</summary>
+    public string? HeadRef { get; init; }
+
+    /// <summary>Base branch name.</summary>
+    public string? BaseRef { get; init; }
 }
 
 /// <summary>
@@ -139,6 +153,15 @@ public interface IGitHubRepository
         string title,
         string head,
         string baseBranch,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists open pull requests for a repository.
+    /// </summary>
+    Task<IReadOnlyList<GitHubPullRequestInfo>> ListOpenPullRequestsAsync(
+        long installationId,
+        string owner,
+        string repo,
         CancellationToken cancellationToken = default);
 
     /// <summary>

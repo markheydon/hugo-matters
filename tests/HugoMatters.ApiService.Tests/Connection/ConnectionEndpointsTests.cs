@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using HugoMatters.Core.Api;
 using HugoMatters.Core.Models;
 using HugoMatters.Core.Ports;
@@ -27,10 +28,10 @@ public sealed class ConnectionEndpointsTests
     }
 
     /// <summary>
-    /// POST /api/connection/authorize connects a site when installation details are provided.
+    /// POST /api/connection connects a site when installation details are provided.
     /// </summary>
     [Fact]
-    public async Task Authorize_ReturnsConnectedSite_WhenInstallationProvided()
+    public async Task Connect_ReturnsConnectedSite_WhenInstallationProvided()
     {
         await using var factory = new HugoMattersApiFactory();
         factory.GitHub.GetRepositoryAsync(42, "owner", "repo", Arg.Any<CancellationToken>())
@@ -43,7 +44,7 @@ public sealed class ConnectionEndpointsTests
             });
 
         using var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync("/api/connection/authorize", new AuthorizeRequest
+        var response = await client.PostAsJsonAsync("/api/connection", new ConnectRequest
         {
             InstallationId = 42,
             Owner = "owner",
@@ -52,18 +53,16 @@ public sealed class ConnectionEndpointsTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var payload = await response.Content.ReadFromJsonAsync<AuthorizeResponse>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.NotNull(payload);
-        Assert.Equal("connected", payload.Status);
-        Assert.NotNull(payload.Site);
-        Assert.Equal("owner", payload.Site.OwnerLogin);
-        Assert.Equal("repo", payload.Site.RepoName);
+        var site = await response.Content.ReadFromJsonAsync<ConnectedSite>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.NotNull(site);
+        Assert.Equal("owner", site.OwnerLogin);
+        Assert.Equal("repo", site.RepoName);
 
         var getResponse = await client.GetAsync("/api/connection", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
-        var site = await getResponse.Content.ReadFromJsonAsync<ConnectedSite>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.NotNull(site);
-        Assert.Equal(payload.Site.Id, site.Id);
+        var persisted = await getResponse.Content.ReadFromJsonAsync<ConnectedSite>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.NotNull(persisted);
+        Assert.Equal(site.Id, persisted.Id);
     }
 
     /// <summary>
@@ -82,7 +81,7 @@ public sealed class ConnectionEndpointsTests
             });
 
         using var client = factory.CreateClient();
-        await client.PostAsJsonAsync("/api/connection/authorize", new AuthorizeRequest { InstallationId = 42, Owner = "owner", Repo = "repo" }, cancellationToken: TestContext.Current.CancellationToken);
+        await client.PostAsJsonAsync("/api/connection", new ConnectRequest { InstallationId = 42, Owner = "owner", Repo = "repo" }, cancellationToken: TestContext.Current.CancellationToken);
 
         var response = await client.DeleteAsync("/api/connection", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
@@ -92,17 +91,17 @@ public sealed class ConnectionEndpointsTests
     }
 
     /// <summary>
-    /// POST /api/connection/authorize returns a clear error when GitHub App is not configured.
+    /// POST /api/connection returns a clear error when GitHub App is not configured.
     /// </summary>
     [Fact]
-    public async Task Authorize_ReturnsGitHubAppNotConfigured_WhenCredentialsMissing()
+    public async Task Connect_ReturnsGitHubAppNotConfigured_WhenCredentialsMissing()
     {
-        await using var factory = new HugoMattersApiFactory { IncludeGitHubAppClientId = false };
+        await using var factory = new HugoMattersApiFactory { IncludeGitHubAppCredentials = false };
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/connection/authorize",
-            new AuthorizeRequest { Owner = "owner", Repo = "repo" },
+            "/api/connection",
+            new ConnectRequest { InstallationId = 42, Owner = "owner", Repo = "repo" },
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -116,20 +115,84 @@ public sealed class ConnectionEndpointsTests
     }
 
     /// <summary>
-    /// POST /api/connection/authorize returns redirect when installation is not provided.
+    /// POST /api/connection returns validation error when owner/repo missing.
     /// </summary>
     [Fact]
-    public async Task Authorize_ReturnsRedirect_WhenInstallationMissing()
+    public async Task Connect_ReturnsBadRequest_WhenOwnerRepoMissing()
     {
         await using var factory = new HugoMattersApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/connection/authorize", new AuthorizeRequest(), cancellationToken: TestContext.Current.CancellationToken);
+        var response = await client.PostAsJsonAsync(
+            "/api/connection",
+            new ConnectRequest { InstallationId = 42, Owner = "", Repo = "repo" },
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<AuthorizeResponse>(HugoMattersApiFactory.JsonOptions, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.NotNull(payload);
-        Assert.Equal("redirect", payload.Status);
-        Assert.False(string.IsNullOrWhiteSpace(payload.RedirectUrl));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Connect_ReturnsPullRequestsDisabled_WhenRepoFeatureOff()
+    {
+        await using var factory = new HugoMattersApiFactory();
+        factory.GitHub.GetRepositoryAsync(42, "owner", "repo", Arg.Any<CancellationToken>())
+            .Returns(new GitHubRepositoryInfo
+            {
+                OwnerLogin = "owner",
+                RepoName = "repo",
+                DefaultBranch = "main",
+                HasPullRequests = false,
+            });
+
+        using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync(
+            "/api/connection",
+            new ConnectRequest { InstallationId = 42, Owner = "owner", Repo = "repo" },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorBody>(
+            HugoMattersApiFactory.JsonOptions,
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.NotNull(error);
+        Assert.Equal("pull_requests_disabled", error.Code);
+        Assert.Contains("Pull requests are disabled", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetReadiness_ReturnsNotReady_WhenPullRequestsDisabled()
+    {
+        await using var factory = new HugoMattersApiFactory();
+        factory.GitHub.GetRepositoryAsync(42, "owner", "repo", Arg.Any<CancellationToken>())
+            .Returns(new GitHubRepositoryInfo
+            {
+                OwnerLogin = "owner",
+                RepoName = "repo",
+                DefaultBranch = "main",
+                HasPullRequests = true,
+            });
+
+        using var client = factory.CreateClient();
+        var connectResponse = await client.PostAsJsonAsync(
+            "/api/connection",
+            new ConnectRequest { InstallationId = 42, Owner = "owner", Repo = "repo" },
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, connectResponse.StatusCode);
+
+        factory.GitHub.GetRepositoryAsync(42, "owner", "repo", Arg.Any<CancellationToken>())
+            .Returns(new GitHubRepositoryInfo
+            {
+                OwnerLogin = "owner",
+                RepoName = "repo",
+                DefaultBranch = "main",
+                HasPullRequests = false,
+            });
+
+        var readinessResponse = await client.GetAsync("/api/connection/readiness", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, readinessResponse.StatusCode);
+        var doc = await readinessResponse.Content.ReadFromJsonAsync<JsonElement>(
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.False(doc.GetProperty("ready").GetBoolean());
+        Assert.Equal("pull_requests_disabled", doc.GetProperty("code").GetString());
     }
 }

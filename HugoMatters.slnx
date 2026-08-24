@@ -9,4 +9,5 @@
   <Project Path="tests/HugoMatters.ApiService.Tests/HugoMatters.ApiService.Tests.csproj" />
   <Project Path="tests/HugoMatters.Core.Tests/HugoMatters.Core.Tests.csproj" />
   <Project Path="tests/HugoMatters.E2E.Tests/HugoMatters.E2E.Tests.csproj" />
+  <Project Path="tests/HugoMatters.Web.Tests/HugoMatters.Web.Tests.csproj" />
 </Solution>

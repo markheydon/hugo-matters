@@ -1,21 +1,22 @@
 @namespace HugoMatters.Web.Components.Content
+@implements IAsyncDisposable
 @inject HugoMattersApiClient Api
 
 <div class="rounded-lg border border-slate-200 bg-white">
     <div class="flex items-center justify-between border-b border-slate-200 px-4 py-2">
         <h3 class="text-sm font-medium text-slate-700">Preview</h3>
-        <Button Variant="Button.ButtonVariant.Ghost" IconName="eye" OnClick="RefreshPreview" Loading="@Loading">
+        <Button Variant="Button.ButtonVariant.Ghost" IconName="eye" OnClick="RefreshPreviewNow" Loading="@Loading">
             Refresh
         </Button>
     </div>
-    <div class="prose prose-sm max-w-none p-4 min-h-[200px] max-h-[500px] overflow-auto">
-        @if (Loading)
+    <div class="prose prose-sm prose-slate max-w-none p-4 min-h-[200px] max-h-[500px] overflow-auto">
+        @if (Loading && Html is null)
         {
-            <p class="text-sm text-slate-500">Rendering preview…</p>
+            <p class="text-sm text-slate-500!">Rendering preview…</p>
         }
         else if (Error is not null)
         {
-            <p class="text-sm text-red-600">@Error</p>
+            <p class="text-sm text-red-600!">@Error</p>
         }
         else if (Html is not null)
         {
@@ -23,12 +24,14 @@
         }
         else
         {
-            <p class="text-sm text-slate-500">Preview will appear here.</p>
+            <p class="text-sm text-slate-500!">Preview will appear here.</p>
         }
     </div>
 </div>
 
 @code {
+    private static readonly TimeSpan AutoRefreshDelay = TimeSpan.FromMilliseconds(350);
+
     [Parameter]
     public string Body { get; set; } = "";
 
@@ -41,40 +44,96 @@
     private string? Html;
     private string? Error;
     private bool Loading;
-    private string? _lastBody;
+    private string? _renderedBody;
+    private CancellationTokenSource? _debounceCts;
+    private int _previewVersion;
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
-        if (AutoRefresh && Body != _lastBody)
+        if (!AutoRefresh || Body == _renderedBody)
         {
-            _lastBody = Body;
-            await RefreshPreview();
+            return;
+        }
+
+        _ = ScheduleAutoRefreshAsync();
+    }
+
+    private async Task ScheduleAutoRefreshAsync()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+        _debounceCts = new CancellationTokenSource();
+        var token = _debounceCts.Token;
+
+        try
+        {
+            await Task.Delay(AutoRefreshDelay, token);
+            await RefreshPreviewAsync(showLoadingPlaceholder: Html is null);
+        }
+        catch (OperationCanceledException)
+        {
+            // Newer keystroke superseded this refresh.
         }
     }
 
-    private async Task RefreshPreview()
+    private Task RefreshPreviewNow() => RefreshPreviewAsync(showLoadingPlaceholder: true);
+
+    private async Task RefreshPreviewAsync(bool showLoadingPlaceholder)
     {
-        Loading = true;
-        Error = null;
-        StateHasChanged();
+        var bodySnapshot = Body;
+        var version = Interlocked.Increment(ref _previewVersion);
+
+        if (showLoadingPlaceholder)
+        {
+            Loading = true;
+            Error = null;
+            await InvokeAsync(StateHasChanged);
+        }
 
         try
         {
             var response = await Api.PreviewEditorAsync(new EditorPreviewRequest
             {
-                Body = Body,
+                Body = bodySnapshot,
                 FrontMatter = FrontMatter,
             });
+
+            if (version != _previewVersion)
+            {
+                return;
+            }
+
             Html = response.Html;
+            Error = null;
+            _renderedBody = bodySnapshot;
         }
         catch (ApiException ex)
         {
+            if (version != _previewVersion)
+            {
+                return;
+            }
+
             Error = ex.Message;
             Html = null;
         }
         finally
         {
-            Loading = false;
+            if (version == _previewVersion)
+            {
+                Loading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_debounceCts is not null)
+        {
+            await _debounceCts.CancelAsync();
+            _debounceCts.Dispose();
+            _debounceCts = null;
         }
     }
 }

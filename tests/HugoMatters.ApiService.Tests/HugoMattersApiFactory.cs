@@ -1,5 +1,8 @@
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using HugoMatters.ApiService.Security;
 using HugoMatters.Core.Json;
 using HugoMatters.Core.Ports;
 using HugoMatters.Infrastructure.Persistence;
@@ -18,8 +21,10 @@ namespace HugoMatters.ApiService.Tests;
 /// </summary>
 public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
 {
-    /// <summary>When false, GitHub App credentials are omitted from test configuration.</summary>
-    public bool IncludeGitHubAppClientId { get; init; } = true;
+    internal const string TestInternalApiToken = "test-internal-token";
+
+    /// <summary>When false, GitHub App JWT credentials are omitted from test configuration.</summary>
+    public bool IncludeGitHubAppCredentials { get; init; } = true;
 
     private readonly string _dataDirectory = Path.Combine(
         Path.GetTempPath(),
@@ -39,6 +44,17 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
         },
     };
 
+    public new HttpClient CreateClient()
+    {
+        var client = base.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            InternalApiAuthenticationMiddleware.SharedSecretHeaderName,
+            TestInternalApiToken);
+        return client;
+    }
+
+    public HttpClient CreateClientWithoutInternalToken() => base.CreateClient();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("HugoMatters:DataDirectory", _dataDirectory);
@@ -48,11 +64,13 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
             var settings = new Dictionary<string, string?>
             {
                 ["HugoMatters:DataDirectory"] = _dataDirectory,
+                ["InternalApi:SharedSecret"] = TestInternalApiToken,
             };
 
-            if (IncludeGitHubAppClientId)
+            if (IncludeGitHubAppCredentials)
             {
-                settings["GitHubApp:ClientId"] = "test-client-id";
+                settings["GitHubApp:AppId"] = "1";
+                settings["GitHubApp:PrivateKeyPem"] = "test-private-key";
             }
 
             config.AddInMemoryCollection(settings);

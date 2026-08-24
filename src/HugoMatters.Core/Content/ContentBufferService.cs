@@ -66,7 +66,15 @@ public sealed class ContentBufferService
             return buffered;
         }
 
-        return null;
+        var loaded = await TryLoadFromGitAsync(session, site, normalized, pack, cancellationToken);
+        if (loaded is null)
+        {
+            return null;
+        }
+
+        buffer.Items[normalized] = loaded;
+        await _bufferStore.SaveBufferAsync(buffer, cancellationToken);
+        return loaded;
     }
 
     /// <summary>
@@ -430,6 +438,7 @@ public sealed class ContentBufferService
             Title = title,
             IsDeleted = item.IsDeleted,
             IsNew = item.IsNew,
+            HasUnsavedLocalEdits = item.HasUnsavedLocalEdits,
         };
     }
 }

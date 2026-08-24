@@ -1,5 +1,7 @@
 @page "/content"
-@rendermode InteractiveServer
+@inherits DeferredLoadPageBase
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
 @inject HugoMattersApiClient Api
 @inject NavigationManager Navigation
 
@@ -11,31 +13,22 @@
             <h1 class="text-2xl font-bold text-slate-900">Content</h1>
             <p class="mt-1 text-sm text-slate-600">Posts and pages in your editing session.</p>
         </div>
-        <div class="flex gap-2">
-            <Button Variant="Button.ButtonVariant.Secondary" IconName="plus" OnClick="@(() => showCreateDialog = true)">
-                New content
-            </Button>
-        </div>
+        @if (!noSession && !loading)
+        {
+            <div class="flex gap-2">
+                <Button Variant="Button.ButtonVariant.Secondary" IconName="plus" OnClick="OpenCreateDialog">
+                    New content
+                </Button>
+            </div>
+        }
     </div>
 
     <div class="mt-4">
     <Banner
         Variant="Banner.BannerVariant.Error"
         Message="@errorMessage"
-        IsVisible="@(errorMessage is not null)"
+        IsVisible="@(errorMessage is not null && !noSession)"
         IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
-    </div>
-
-    <div class="mt-4 flex gap-2">
-        @foreach (var filter in filters)
-        {
-            <button
-                type="button"
-                class="@GetFilterClasses(filter)"
-                @onclick="@(() => SetFilter(filter))">
-                @filter
-            </button>
-        }
     </div>
 
     @if (loading)
@@ -45,73 +38,112 @@
             <span>Loading content…</span>
         </div>
     }
-    else if (items.Count == 0)
+    else if (noSession)
     {
-        <div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-            <p class="text-sm text-slate-600">No content items yet. Create a post or page to get started.</p>
-            <Button CssClass="mt-4" IconName="plus" OnClick="@(() => showCreateDialog = true)">
-                Create content
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900">No active editing session</h2>
+            <p class="mt-2 text-sm text-slate-600">
+                Start or resume a session before browsing or creating content.
+            </p>
+            <Button CssClass="mt-4" IconName="git-branch" OnClick="@(() => Navigation.NavigateTo("/session"))">
+                Go to session
             </Button>
         </div>
     }
     else
     {
-        <div class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table class="min-w-full divide-y divide-slate-200">
-                <thead class="bg-slate-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Title</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Path</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
-                        <th class="px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200">
-                    @foreach (var item in items)
-                    {
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 text-sm font-medium text-slate-900">@item.Title</td>
-                            <td class="px-4 py-3 text-sm text-slate-600">@item.ContentType</td>
-                            <td class="px-4 py-3 text-sm text-slate-500 font-mono">@item.Path</td>
-                            <td class="px-4 py-3 text-sm">
-                                @if (item.IsDeleted)
-                                {
-                                    <span class="text-red-600">Deleted</span>
-                                }
-                                else if (item.IsNew)
-                                {
-                                    <span class="text-brand-600">New</span>
-                                }
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <Button Variant="Button.ButtonVariant.Ghost" IconName="edit" OnClick="@(() => Navigation.NavigateTo($"/content/{Uri.EscapeDataString(item.Path)}"))">
-                                    Edit
-                                </Button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <div class="mt-4 flex gap-2">
+            @foreach (var filter in filters)
+            {
+                <button
+                    type="button"
+                    class="@GetFilterClasses(filter)"
+                    @onclick="@(() => SetFilter(filter))">
+                    @filter
+                </button>
+            }
         </div>
+
+        @if (items.Count == 0)
+        {
+            <div class="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                <p class="text-sm text-slate-600">No content items yet. Create a post or page to get started.</p>
+                <Button CssClass="mt-4" IconName="plus" OnClick="OpenCreateDialog">
+                    Create content
+                </Button>
+            </div>
+        }
+        else
+        {
+            <div class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Title</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Path</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
+                            <th class="px-4 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        @foreach (var item in items)
+                        {
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-4 py-3 text-sm font-medium text-slate-900">@item.Title</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">@item.ContentType</td>
+                                <td class="px-4 py-3 text-sm text-slate-500 font-mono">@item.Path</td>
+                                <td class="px-4 py-3 text-sm">
+                                    @if (item.IsDeleted)
+                                    {
+                                        <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">Deleted</span>
+                                    }
+                                    else if (item.IsNew)
+                                    {
+                                        <span class="inline-flex rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-800">New</span>
+                                    }
+                                    else if (item.HasUnsavedLocalEdits)
+                                    {
+                                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900">Unsaved</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">On branch</span>
+                                    }
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <Button Variant="Button.ButtonVariant.Ghost" IconName="edit" OnClick="@(() => Navigation.NavigateTo($"/content/{item.Path}"))">
+                                        Edit
+                                    </Button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
 </div>
 
-<Dialog Title="Create content" IsOpen="@showCreateDialog" IsOpenChanged="@((bool v) => showCreateDialog = v)" Footer="@CreateFooter">
-    <div class="space-y-4">
-        <Select Label="Content type" Value="@createType" ValueChanged="@(v => createType = v ?? "post")" Options="@contentTypeOptions" />
-        <TextField Label="Slug" Placeholder="my-new-post" Value="@createSlug" ValueChanged="@(v => createSlug = v ?? "")" Required="true" />
-        <TextField Label="Title (optional)" Value="@createTitle" ValueChanged="@(v => createTitle = v ?? "")" />
-    </div>
-</Dialog>
+@if (!noSession)
+{
+    <Dialog Title="Create content" IsOpen="@showCreateDialog" IsOpenChanged="@((bool v) => showCreateDialog = v)" Footer="@CreateFooter">
+        <div class="space-y-4">
+            <Select Label="Content type" Value="@createType" ValueChanged="@(v => createType = v ?? "page")" Options="@contentTypeOptions" />
+            <TextField Label="Slug" Placeholder="my-new-page" Value="@createSlug" ValueChanged="@(v => createSlug = v ?? "")" Required="true" />
+            <TextField Label="Title (optional)" Value="@createTitle" ValueChanged="@(v => createTitle = v ?? "")" />
+        </div>
+    </Dialog>
+}
 
 @code {
     private List<ContentItemSummaryDto> items = [];
     private bool loading = true;
+    private bool noSession;
     private string? errorMessage;
     private string activeFilter = "all";
     private bool showCreateDialog;
-    private string createType = "post";
+    private string createType = "page";
     private string createSlug = "";
     private string createTitle = "";
     private bool creating;
@@ -121,6 +153,12 @@
         new("post", "Post"),
         new("page", "Page"),
     ];
+
+    private void OpenCreateDialog()
+    {
+        createType = activeFilter is "post" or "page" ? activeFilter : "page";
+        showCreateDialog = true;
+    }
 
     private RenderFragment CreateFooter => __builder =>
     {
@@ -137,19 +175,31 @@
         __builder.CloseComponent();
     };
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadContent();
-    }
+    protected override Task LoadPageAsync() => LoadContent();
 
     private async Task LoadContent()
     {
         loading = true;
         errorMessage = null;
+        noSession = false;
 
         try
         {
+            var session = await Api.GetSessionAsync();
+            if (session is null)
+            {
+                noSession = true;
+                items = [];
+                return;
+            }
+
             items = await Api.ListContentAsync(activeFilter);
+        }
+        catch (ApiException ex) when (ex.StatusCode == 404
+            || ex.Message.Contains("session", StringComparison.OrdinalIgnoreCase))
+        {
+            noSession = true;
+            items = [];
         }
         catch (ApiException ex)
         {
@@ -198,7 +248,7 @@
             showCreateDialog = false;
             createSlug = "";
             createTitle = "";
-            Navigation.NavigateTo($"/content/{Uri.EscapeDataString(item.Path)}");
+            Navigation.NavigateTo($"/content/{item.Path}");
         }
         catch (ApiException ex)
         {

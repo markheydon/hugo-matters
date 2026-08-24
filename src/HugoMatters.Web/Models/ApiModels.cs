@@ -11,31 +11,28 @@ public sealed class ErrorBody
     public required string Message { get; init; }
 }
 
-public sealed class AuthorizeRequest
+public sealed class ConnectRequestDto
 {
     [JsonPropertyName("installationId")]
-    public long? InstallationId { get; init; }
+    public long InstallationId { get; init; }
 
     [JsonPropertyName("owner")]
-    public string? Owner { get; init; }
+    public required string Owner { get; init; }
 
     [JsonPropertyName("repo")]
-    public string? Repo { get; init; }
-
-    [JsonPropertyName("callbackCode")]
-    public string? CallbackCode { get; init; }
+    public required string Repo { get; init; }
 }
 
-public sealed class AuthorizeResponse
+public sealed class RepositoryReadinessDto
 {
-    [JsonPropertyName("status")]
-    public required string Status { get; init; }
+    [JsonPropertyName("ready")]
+    public bool Ready { get; init; }
 
-    [JsonPropertyName("redirectUrl")]
-    public string? RedirectUrl { get; init; }
+    [JsonPropertyName("code")]
+    public string? Code { get; init; }
 
-    [JsonPropertyName("site")]
-    public ConnectedSiteDto? Site { get; init; }
+    [JsonPropertyName("message")]
+    public string? Message { get; init; }
 }
 
 public sealed class ConnectedSiteDto
@@ -92,6 +89,30 @@ public sealed class EditingSessionDto
     public required bool HasUnsavedLocalEdits { get; init; }
 }
 
+public sealed class ResumableSessionDto
+{
+    [JsonPropertyName("pullRequestNumber")]
+    public required int PullRequestNumber { get; init; }
+
+    [JsonPropertyName("pullRequestUrl")]
+    public required string PullRequestUrl { get; init; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    [JsonPropertyName("branchName")]
+    public required string BranchName { get; init; }
+
+    [JsonPropertyName("baseBranch")]
+    public required string BaseBranch { get; init; }
+}
+
+public sealed class ResumeSessionRequestDto
+{
+    [JsonPropertyName("pullRequestNumber")]
+    public required int PullRequestNumber { get; init; }
+}
+
 public sealed class SaveRequest
 {
     [JsonPropertyName("commitMessage")]
@@ -134,6 +155,21 @@ public sealed class DiscardResultDto
     public required string Message { get; init; }
 }
 
+public sealed class LeaveSessionRequestDto
+{
+    [JsonPropertyName("confirmLeaveUnsaved")]
+    public required bool ConfirmLeaveUnsaved { get; init; }
+}
+
+public sealed class LeaveSessionResultDto
+{
+    [JsonPropertyName("outcome")]
+    public required string Outcome { get; init; }
+
+    [JsonPropertyName("message")]
+    public required string Message { get; init; }
+}
+
 public sealed class ContentItemSummaryDto
 {
     [JsonPropertyName("path")]
@@ -150,6 +186,9 @@ public sealed class ContentItemSummaryDto
 
     [JsonPropertyName("isNew")]
     public required bool IsNew { get; init; }
+
+    [JsonPropertyName("hasUnsavedLocalEdits")]
+    public bool HasUnsavedLocalEdits { get; init; }
 }
 
 public sealed class ContentItemDto
@@ -261,6 +300,10 @@ public sealed class FieldDefinitionDto
 
     [JsonPropertyName("editorWidget")]
     public string? EditorWidget { get; init; }
+
+    /// <summary><c>hugo</c> or <c>theme</c> — site config field origin.</summary>
+    [JsonPropertyName("scope")]
+    public string? Scope { get; init; }
 
     [JsonPropertyName("options")]
     public List<string>? Options { get; init; }

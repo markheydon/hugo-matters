@@ -57,8 +57,22 @@ public sealed class DiscardService
         SessionLifecycle.BeginDiscarding(session);
         await _metadataStore.SaveSessionAsync(session, cancellationToken);
 
+        var gitHubCleanupCompleted = false;
         try
         {
+            // Local preview first so a container/runtime failure cannot leave a
+            // GitHub-deleted branch paired with an Active local session.
+            try
+            {
+                await _previewOrchestrator.StopPreviewAsync(session.Id, cancellationToken);
+            }
+            catch (Exception previewEx) when (previewEx is not OperationCanceledException)
+            {
+                // Preview cleanup must not block discarding the GitHub session.
+            }
+
+            await _metadataStore.DeleteSitePreviewAsync(session.Id, cancellationToken);
+
             await _gitHubRepository.ClosePullRequestAsync(
                 site.InstallationId,
                 site.OwnerLogin,
@@ -73,8 +87,8 @@ public sealed class DiscardService
                 session.BranchName,
                 cancellationToken);
 
-            await _previewOrchestrator.StopPreviewAsync(session.Id, cancellationToken);
-            await _metadataStore.DeleteSitePreviewAsync(session.Id, cancellationToken);
+            gitHubCleanupCompleted = true;
+
             await _bufferStore.ClearBufferAsync(session.Id, cancellationToken);
 
             SessionLifecycle.End(session);
@@ -88,13 +102,37 @@ public sealed class DiscardService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            if (gitHubCleanupCompleted)
+            {
+                // PR/branch are already gone — finishing local teardown is mandatory.
+                try
+                {
+                    await _bufferStore.ClearBufferAsync(session.Id, cancellationToken);
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                SessionLifecycle.End(session);
+                await _metadataStore.SaveSessionAsync(session, cancellationToken);
+
+                return new DiscardResult
+                {
+                    Outcome = DiscardOutcome.Succeeded,
+                    Message = "Session discarded on GitHub. Local cleanup finished with warnings.",
+                };
+            }
+
             SessionLifecycle.RevertToActive(session);
             await _metadataStore.SaveSessionAsync(session, cancellationToken);
 
             return new DiscardResult
             {
                 Outcome = DiscardOutcome.Failed,
-                Message = "Discard failed. The session remains active.",
+                Message = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Discard failed. The session remains active."
+                    : $"Discard failed. The session remains active. {ex.Message}",
             };
         }
     }

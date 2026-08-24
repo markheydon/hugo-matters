@@ -8,7 +8,7 @@
 
 Hugo Matters is a local-first CMS for a solo owner to connect one GitHub-hosted Hugo site, edit posts/pages through a theme-pack–aware UI (Hugo Profile first), save as commits on a session branch/PR, preview with real Hugo in an isolated container, and publish by merging into the repository’s default branch (or discard by closing without merge).
 
-Technical approach: extend the existing .NET 10 Aspire solution (Blazor Server Web + ApiService + ServiceDefaults + AppHost). Domain/session/theme-pack logic lives in reusable class libraries; GitHub App is the repository access model; only connection/session metadata is persisted locally; Git remains source of truth. UI uses Tailwind CSS + Lucide Icons with small shared Blazor primitives (no MudBlazor/Fluent). Tests: xUnit v3 + NSubstitute + built-in Assert; Playwright for a thin E2E smoke path. AppHost modelling is not tested.
+Technical approach: extend the existing .NET 10 Aspire solution (Blazor Server Web + ApiService + ServiceDefaults + AppHost). Domain/session/theme-pack logic lives in reusable class libraries; GitHub App is the repository access model; **Web owns GitHub user sign-in** (`HostedGitHubAuthGateway` pattern, `/auth/callback`); ApiService binds the site via `ConnectAsync` using installation tokens only. Only connection/session metadata is persisted locally; Git remains source of truth. UI uses Tailwind CSS + Lucide Icons with small shared Blazor primitives (no MudBlazor/Fluent). Tests: xUnit v3 + NSubstitute + built-in Assert; Playwright for a thin E2E smoke path. AppHost modelling is not tested.
 
 ## Technical Context
 

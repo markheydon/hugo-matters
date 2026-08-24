@@ -22,8 +22,8 @@ aspire secret set Parameters:github-app-id "<app-id>"
 aspire secret set Parameters:github-app-client-id "<client-id>"
 aspire secret set Parameters:github-app-client-secret "<client-secret>"
 aspire secret set Parameters:github-app-private-key-pem "<pem-or-path>"
-# Optional if Web runs on a different port:
-# aspire secret set Parameters:github-app-redirect-uri "http://localhost:5253/connect"
+# Optional if Web runs on a different HTTPS port:
+# aspire secret set Parameters:github-app-callback-base-uri "https://localhost:7175"
 ```
 
 ## Start the app
@@ -37,14 +37,15 @@ Open the Web external endpoint from the Aspire dashboard.
 
 ## Validation scenarios
 
-### 1) Connect (P1)
+### 1) Sign in and connect (P1)
 
-1. In the UI, start **Connect repository**.
-2. Complete GitHub App install/authorize for the Profile site repo.
-3. **Expect**: Site shows as connected; default branch name displayed (need not be `main`).
-4. Cancel/deny path: **Expect** site not connected.
+1. Open the Web app — **Expect** welcome page with **Sign in with GitHub** (not the CMS shell).
+2. Complete GitHub sign-in; install the App on your account if prompted.
+3. Enter repository owner/name and **Connect repository**.
+4. **Expect**: Site shows as connected; default branch name displayed (need not be `main`).
+5. Deny/cancel sign-in path: **Expect** no CMS chrome and site not connected.
 
-Contracts: `POST /api/connection/authorize`, `GET /api/connection` — [api-openapi.yaml](./contracts/api-openapi.yaml).
+Contracts: `POST /api/connection`, `GET /api/connection` — [api-openapi.yaml](./contracts/api-openapi.yaml).
 
 ### 2) Start session (P1)
 

@@ -1,3 +1,4 @@
+using HugoMatters.Core.Connection;
 using HugoMatters.Core.Models;
 using HugoMatters.Core.Ports;
 using HugoMatters.Core.Sessions;
@@ -9,11 +10,13 @@ public class SessionServiceTests
 {
     private readonly IMetadataStore _metadataStore = Substitute.For<IMetadataStore>();
     private readonly IGitHubRepository _gitHubRepository = Substitute.For<IGitHubRepository>();
+    private readonly IThemePackRegistry _themePackRegistry = Substitute.For<IThemePackRegistry>();
     private readonly SessionService _service;
 
     public SessionServiceTests()
     {
-        _service = new SessionService(_metadataStore, _gitHubRepository);
+        var connectionService = new ConnectionService(_metadataStore, _gitHubRepository, _themePackRegistry);
+        _service = new SessionService(_metadataStore, _gitHubRepository, connectionService);
     }
 
     [Fact]
@@ -35,14 +38,73 @@ public class SessionServiceTests
     }
 
     [Fact]
-    public async Task StartSessionAsync_ThrowsWhenSiteNotConnected()
+    public async Task StartSessionAsync_ThrowsWhenSiteDisconnected()
     {
-        var site = TestHelpers.CreateConnectedSite(status: SiteStatus.AccessLost);
+        var site = TestHelpers.CreateConnectedSite(status: SiteStatus.Disconnected);
         _metadataStore.GetConnectedSiteAsync(Arg.Any<CancellationToken>()).Returns(site);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.StartSessionAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains("not connected", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_RestoresAccessLostWhenGitHubStillReachable()
+    {
+        var siteId = Guid.NewGuid();
+        var current = TestHelpers.CreateConnectedSite(id: siteId, status: SiteStatus.AccessLost);
+
+        _metadataStore.GetConnectedSiteAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => current);
+        _metadataStore.When(x => x.SaveConnectedSiteAsync(Arg.Any<ConnectedSite>(), Arg.Any<CancellationToken>()))
+            .Do(call => current = call.ArgAt<ConnectedSite>(0));
+        _metadataStore.GetActiveSessionAsync(siteId, Arg.Any<CancellationToken>()).Returns((EditingSession?)null);
+
+        _gitHubRepository.GetRepositoryAsync(
+                current.InstallationId,
+                current.OwnerLogin,
+                current.RepoName,
+                Arg.Any<CancellationToken>())
+            .Returns(new GitHubRepositoryInfo
+            {
+                OwnerLogin = current.OwnerLogin,
+                RepoName = current.RepoName,
+                DefaultBranch = "main",
+            });
+
+        _gitHubRepository.CreateBranchAsync(
+                current.InstallationId,
+                current.OwnerLogin,
+                current.RepoName,
+                Arg.Is<string>(b => b.StartsWith(SessionService.BranchPrefix, StringComparison.Ordinal)),
+                "main",
+                Arg.Any<CancellationToken>())
+            .Returns("sha");
+
+        _gitHubRepository.CreateCommitAsync(
+                current.InstallationId,
+                current.OwnerLogin,
+                current.RepoName,
+                Arg.Is<string>(b => b.StartsWith(SessionService.BranchPrefix, StringComparison.Ordinal)),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<GitHubFileChange>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new GitHubCommitInfo { Sha = "commit-sha" });
+
+        _gitHubRepository.CreatePullRequestAsync(
+                current.InstallationId,
+                current.OwnerLogin,
+                current.RepoName,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                "main",
+                Arg.Any<CancellationToken>())
+            .Returns(new GitHubPullRequestInfo { Number = 1, HtmlUrl = "https://example.test/pr/1" });
+
+        var session = await _service.StartSessionAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(SessionState.Active, session.State);
+        Assert.Equal(SiteStatus.Connected, current.Status);
     }
 
     [Fact]
@@ -85,6 +147,16 @@ public class SessionServiceTests
                 "main",
                 Arg.Any<CancellationToken>())
             .Returns("refs/heads/hugo-matters/session-abc");
+
+        _gitHubRepository.CreateCommitAsync(
+                site.InstallationId,
+                site.OwnerLogin,
+                site.RepoName,
+                Arg.Is<string>(b => b.StartsWith(SessionService.BranchPrefix, StringComparison.Ordinal)),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<GitHubFileChange>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new GitHubCommitInfo { Sha = "commit-sha" });
 
         _gitHubRepository.CreatePullRequestAsync(
                 site.InstallationId,

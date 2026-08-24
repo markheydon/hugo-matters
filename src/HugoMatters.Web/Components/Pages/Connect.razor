@@ -1,102 +1,503 @@
 @page "/connect"
-@rendermode InteractiveServer
+@inherits DeferredLoadPageBase
+@implements IAsyncDisposable
+@rendermode AppRenderMode.Interactive
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using HugoMatters.Web.Authentication
 @inject HugoMattersApiClient Api
 @inject NavigationManager Navigation
+@inject GitHubUserContext GitHubUser
+@inject GitHubAuthGateway AuthGateway
+@inject GitHubAuthSessionManager AuthSessionManager
+@inject IHttpContextAccessor HttpContextAccessor
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IOptions<GitHubAuthOptions> GitHubAuthOptionsAccessor
 
-<PageTitle>Connect Repository</PageTitle>
+<PageTitle>@(site is not null ? "Connected repository" : "Connect Repository")</PageTitle>
 
 <div class="max-w-2xl">
-    <h1 class="text-2xl font-bold text-slate-900">Connect your Hugo site</h1>
-    <p class="mt-2 text-sm text-slate-600">
-        Authorize Hugo Matters via the GitHub App to connect your Hugo repository.
-        Only the repository you select will be accessible.
-    </p>
+    @if (loading)
+    {
+        <h1 class="text-2xl font-bold text-slate-900">Repository connection</h1>
+        <p class="mt-2 text-sm text-slate-600">Checking your current site binding…</p>
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading…</span>
+        </div>
+    }
+    else if (site is not null)
+    {
+        <h1 class="text-2xl font-bold text-slate-900">Connected repository</h1>
+        <p class="mt-2 text-sm text-slate-600">
+            Hugo Matters is bound to this GitHub repository. Disconnect to clear the local binding, or go home to keep editing.
+        </p>
 
-    <Banner
-        Variant="Banner.BannerVariant.Error"
-        Title="Connection failed"
-        Message="@errorMessage"
-        IsVisible="@(errorMessage is not null)"
-        IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
+        <Banner
+            Variant="Banner.BannerVariant.Error"
+            Title="Connection failed"
+            Message="@errorMessage"
+            IsVisible="@(errorMessage is not null)"
+            IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
 
-    <div class="mt-8 space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="flex items-center gap-3 text-brand-700">
-            <Icon Name="github" Size="24" />
-            <h2 class="text-lg font-semibold">GitHub repository</h2>
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-start gap-3">
+                    <div class="rounded-lg bg-brand-50 p-3 text-brand-700">
+                        <Icon Name="github" Size="24" />
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">
+                            @site.OwnerLogin/@site.RepoName
+                        </h2>
+                        @if (site.HtmlUrl is not null)
+                        {
+                            <a href="@site.HtmlUrl" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700">
+                                View on GitHub
+                                <Icon Name="external-link" Size="14" />
+                            </a>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(signedInAs))
+                        {
+                            <p class="mt-2 text-sm text-slate-600">
+                                Signed in as <span class="font-medium text-slate-900">@signedInAs</span>
+                            </p>
+                        }
+                    </div>
+                </div>
+                <span class="@GetStatusBadgeClasses(site.Status)">
+                    @site.Status
+                </span>
+            </div>
+
+            <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+                <div>
+                    <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Default branch</dt>
+                    <dd class="mt-1 text-sm font-medium text-slate-900">@site.DefaultBranch</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Theme pack</dt>
+                    <dd class="mt-1 text-sm font-medium text-slate-900">
+                        @site.ThemePackId
+                        @if (site.ThemePackVersion is not null)
+                        {
+                            <span class="text-slate-500">@($" v{site.ThemePackVersion}")</span>
+                        }
+                    </dd>
+                </div>
+            </dl>
+
+            <div class="mt-6 flex flex-wrap gap-3">
+                <Button Variant="Button.ButtonVariant.Secondary" IconName="home" OnClick="@(() => Navigation.NavigateTo("/"))">
+                    Back to home
+                </Button>
+                <Button Variant="Button.ButtonVariant.Danger" IconName="x" OnClick="Disconnect" Loading="@disconnecting">
+                    Disconnect
+                </Button>
+            </div>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-            <TextField Label="Owner" Placeholder="github-username" Value="@owner" ValueChanged="@(v => owner = v ?? "")" Required="true" />
-            <TextField Label="Repository" Placeholder="my-hugo-site" Value="@repo" ValueChanged="@(v => repo = v ?? "")" Required="true" />
-        </div>
+        <p class="mt-4 text-sm text-slate-500">
+            Disconnect clears the local site binding. It does not uninstall the GitHub App.
+            After disconnecting you can connect a different repository here.
+        </p>
+    }
+    else
+    {
+        <h1 class="text-2xl font-bold text-slate-900">Connect your Hugo site</h1>
+        <p class="mt-2 text-sm text-slate-600">
+            Choose a repository from those available to your GitHub App installation.
+        </p>
 
-        <TextField
-            Label="Installation ID (optional)"
-            Hint="Provide if you already installed the GitHub App and know the installation ID."
-            Placeholder="12345678"
-            Value="@installationIdText"
-            ValueChanged="@(v => installationIdText = v ?? "")" />
+        <Banner
+            Variant="Banner.BannerVariant.Error"
+            Title="Connection failed"
+            Message="@errorMessage"
+            IsVisible="@(errorMessage is not null)"
+            IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
 
-        <div class="flex gap-3">
-            <Button IconName="link" OnClick="ConnectRepository" Loading="@loading">
-                Connect repository
-            </Button>
-            <Button Variant="Button.ButtonVariant.Secondary" OnClick="@(() => Navigation.NavigateTo("/"))">
-                Cancel
-            </Button>
-        </div>
-    </div>
+        @if (needsInstallationPick && availableInstallations.Count > 0)
+        {
+            <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <p class="font-medium text-slate-900">Choose a GitHub App installation</p>
+                <p class="mt-1">Your account has access to multiple installations. Select the one that owns your Hugo site repository.</p>
+                <div class="mt-4">
+                    <Select
+                        Label="Installation"
+                        Placeholder="Select installation"
+                        Required="true"
+                        Value="@selectedInstallationIdText"
+                        ValueChanged="OnInstallationSelected"
+                        Options="@installationOptions" />
+                </div>
+            </div>
+        }
 
-    <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        <p class="font-medium text-slate-700">Before connecting</p>
-        <ol class="mt-2 list-decimal list-inside space-y-1">
-            <li>Create a GitHub App with Contents and Pull Request read/write permissions.</li>
-            <li>Install the app on your account and grant access to your Hugo site repository.</li>
-            <li>Configure App credentials via <code>aspire secret set</code> on AppHost (see github-app-setup.md).</li>
-        </ol>
-    </div>
+        @if (needsInstall)
+        {
+            <div class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p class="font-medium">Install the Hugo Matters GitHub App</p>
+                <p class="mt-1">Sign-in succeeded, but no App installation was found. Install the app on your GitHub account, then return here to connect your repository.</p>
+                @if (!string.IsNullOrWhiteSpace(installUrl))
+                {
+                    <a href="@installUrl" target="_blank" rel="noopener" class="mt-3 inline-flex items-center gap-1 font-medium text-brand-700 hover:text-brand-800">
+                        Install GitHub App
+                        <Icon Name="external-link" Size="14" />
+                    </a>
+                }
+            </div>
+        }
+
+        @if (connecting && progress is not null)
+        {
+            <div class="mt-8">
+                <ActionProgressPanel
+                    Title="Connecting repository"
+                    Message="@progress.Message"
+                    Percent="@progress.Percent"
+                    Hint="Detecting theme pack and binding the site to this installation." />
+            </div>
+        }
+        else
+        {
+            <div class="mt-8 space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center gap-3 text-brand-700">
+                    <Icon Name="github" Size="24" />
+                    <h2 class="text-lg font-semibold">GitHub repository</h2>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(signedInAs))
+                {
+                    <p class="text-sm text-slate-600">Signed in as <span class="font-medium text-slate-900">@signedInAs</span></p>
+                }
+
+                @if (loadingRepos)
+                {
+                    <div class="flex items-center gap-2 text-sm text-slate-500">
+                        <Icon Name="loader" CssClass="animate-spin" />
+                        <span>Loading repositories from GitHub…</span>
+                    </div>
+                }
+                else if (installationId is null or <= 0)
+                {
+                    if (loadingInstallations)
+                    {
+                        <div class="flex items-center gap-2 text-sm text-slate-500">
+                            <Icon Name="loader" CssClass="animate-spin" />
+                            <span>Loading GitHub App installations…</span>
+                        </div>
+                    }
+                    else if (availableInstallations.Count > 0)
+                    {
+                        <p class="text-sm text-slate-600">Select which GitHub App installation to use before choosing a repository.</p>
+                    }
+                    else
+                    {
+                        <p class="text-sm text-slate-500">Install the Hugo Matters GitHub App before connecting a repository.</p>
+                    }
+                }
+                else if (repositories.Count == 0)
+                {
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        <p class="font-medium text-slate-800">No repositories available</p>
+                        <p class="mt-1">
+                            This App installation has no repositories yet. Grant the app access to your Hugo site repository on GitHub, then refresh.
+                        </p>
+                        <div class="mt-3 flex flex-wrap gap-3">
+                            @if (!string.IsNullOrWhiteSpace(installUrl))
+                            {
+                                <a href="@installUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-medium text-brand-700 hover:text-brand-800">
+                                    Manage installation
+                                    <Icon Name="external-link" Size="14" />
+                                </a>
+                            }
+                            <Button Variant="Button.ButtonVariant.Secondary" IconName="refresh-cw" OnClick="LoadRepositoriesAsync" Disabled="@loadingRepos">
+                                Refresh list
+                            </Button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <Select
+                        Label="Repository"
+                        Placeholder="Select a repository"
+                        Required="true"
+                        Value="@selectedFullName"
+                        ValueChanged="OnRepositorySelected"
+                        Options="@repositoryOptions" />
+
+                    <div class="flex gap-3">
+                        <Button IconName="link" OnClick="ConnectRepository" Disabled="@(string.IsNullOrWhiteSpace(selectedFullName))">
+                            Connect repository
+                        </Button>
+                        <Button Variant="Button.ButtonVariant.Secondary" IconName="refresh-cw" OnClick="LoadRepositoriesAsync" Disabled="@loadingRepos">
+                            Refresh
+                        </Button>
+                        <Button Variant="Button.ButtonVariant.Secondary" OnClick="@(() => Navigation.NavigateTo("/"))">
+                            Cancel
+                        </Button>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                <p class="font-medium text-slate-700">Before connecting</p>
+                <ol class="mt-2 list-inside list-decimal space-y-1">
+                    <li>Install the Hugo Matters GitHub App on the account that owns your Hugo site.</li>
+                    <li>Grant the app access to that repository (or all repos on the account).</li>
+                    <li>Pick the repository from the list above.</li>
+                </ol>
+            </div>
+        }
+    }
 </div>
 
 @code {
-    private string owner = "";
-    private string repo = "";
-    private string installationIdText = "";
-    private bool loading;
-    private string? errorMessage;
+    private static readonly string[] ConnectProgressMessages =
+    [
+        "Validating GitHub App installation…",
+        "Checking repository access…",
+        "Detecting theme pack…",
+        "Saving connection…",
+        "Almost done…",
+    ];
 
-    private async Task ConnectRepository()
+    private ConnectedSiteDto? site;
+    private bool loading = true;
+    private bool disconnecting;
+    private long? installationId;
+    private string? signedInAs;
+    private string? accessToken;
+    private string? installUrl;
+    private bool needsInstall;
+    private bool needsInstallationPick;
+    private bool loadingInstallations;
+    private bool connecting;
+    private bool loadingRepos = true;
+    private string? errorMessage;
+    private string? selectedFullName;
+    private string? selectedInstallationIdText;
+    private IReadOnlyList<GitHubInstallationRepository> repositories = [];
+    private IReadOnlyList<GitHubUserInstallation> availableInstallations = [];
+    private IReadOnlyList<Select.SelectOption> repositoryOptions = [];
+    private IReadOnlyList<Select.SelectOption> installationOptions = [];
+    private SteppedProgressRunner? progress;
+
+    protected override async Task LoadPageAsync()
     {
-        if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(repo))
+        loading = true;
+
+        try
         {
-            errorMessage = "Owner and repository are required.";
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            signedInAs = GitHubUser.GetOwnerLogin(user);
+            installationId = GitHubUser.GetInstallationId(user);
+            accessToken = GitHubUser.GetAccessToken(user);
+
+            var slug = GitHubAuthOptionsAccessor.Value.GitHubAppSlug;
+            if (!string.IsNullOrWhiteSpace(slug))
+            {
+                installUrl = $"https://github.com/apps/{slug}/installations/new";
+            }
+
+            ApplyQueryMessages();
+
+            site = await Api.GetConnectionAsync();
+            if (site is not null)
+            {
+                loadingRepos = false;
+                loadingInstallations = false;
+                return;
+            }
+
+            await LoadInstallationsAsync();
+            if (installationId is > 0)
+            {
+                await LoadRepositoriesAsync();
+            }
+            else
+            {
+                loadingRepos = false;
+            }
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ApplyQueryMessages()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("needs_install", out var needsInstallValue)
+            && string.Equals(needsInstallValue.ToString(), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            needsInstall = true;
+        }
+
+        if (query.TryGetValue("needs_installation_pick", out var needsPickValue)
+            && string.Equals(needsPickValue.ToString(), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            needsInstallationPick = true;
+        }
+
+        if (query.TryGetValue("error", out var error) && !string.IsNullOrWhiteSpace(error))
+        {
+            errorMessage = "Could not connect the repository. Check your GitHub App installation and try again.";
+        }
+    }
+
+    private async Task LoadInstallationsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            availableInstallations = [];
+            installationOptions = [];
+            loadingInstallations = false;
             return;
         }
 
-        loading = true;
+        loadingInstallations = true;
+        try
+        {
+            availableInstallations = await AuthGateway.ListUserInstallationsAsync(accessToken, CancellationToken.None);
+            installationOptions = availableInstallations
+                .Select(installation => new Select.SelectOption(
+                    installation.Id.ToString(),
+                    installation.AccountLogin))
+                .ToArray();
+
+            if (installationId is > 0)
+            {
+                selectedInstallationIdText = installationId.Value.ToString();
+            }
+            else if (availableInstallations.Count == 1)
+            {
+                await BindInstallationAsync(availableInstallations[0].Id);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not load GitHub App installations. Try signing in again.";
+            availableInstallations = [];
+            installationOptions = [];
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+            availableInstallations = [];
+            installationOptions = [];
+        }
+        finally
+        {
+            loadingInstallations = false;
+        }
+    }
+
+    private async Task OnInstallationSelected(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !long.TryParse(value, out var parsedInstallationId))
+        {
+            return;
+        }
+
+        selectedInstallationIdText = value;
+        await BindInstallationAsync(parsedInstallationId);
+        needsInstallationPick = false;
+        needsInstall = false;
+        await LoadRepositoriesAsync();
+    }
+
+    private async Task BindInstallationAsync(long parsedInstallationId)
+    {
+        if (HttpContextAccessor.HttpContext is null)
+        {
+            return;
+        }
+
+        if (await AuthSessionManager.TrySetInstallationIdAsync(HttpContextAccessor.HttpContext, parsedInstallationId))
+        {
+            installationId = parsedInstallationId;
+        }
+    }
+
+    private async Task LoadRepositoriesAsync()
+    {
+        if (installationId is null or <= 0 || string.IsNullOrWhiteSpace(accessToken))
+        {
+            needsInstall = installationId is null or <= 0;
+            repositories = [];
+            repositoryOptions = [];
+            loadingRepos = false;
+            return;
+        }
+
+        loadingRepos = true;
         errorMessage = null;
 
         try
         {
-            long? installationId = null;
-            if (!string.IsNullOrWhiteSpace(installationIdText) && long.TryParse(installationIdText, out var parsed))
+            repositories = await AuthGateway.ListInstallationRepositoriesAsync(
+                accessToken,
+                installationId.Value,
+                CancellationToken.None);
+
+            repositoryOptions = repositories
+                .Select(repository => new Select.SelectOption(
+                    repository.FullName,
+                    repository.IsPrivate ? $"{repository.FullName} (private)" : repository.FullName))
+                .ToArray();
+
+            if (!string.IsNullOrWhiteSpace(selectedFullName)
+                && repositories.All(repository => !string.Equals(repository.FullName, selectedFullName, StringComparison.Ordinal)))
             {
-                installationId = parsed;
+                selectedFullName = null;
             }
 
-            var response = await Api.AuthorizeAsync(new AuthorizeRequest
+            if (repositories.Count == 1)
             {
-                Owner = owner.Trim(),
-                Repo = repo.Trim(),
-                InstallationId = installationId,
-            });
-
-            if (response.Status == "redirect" && response.RedirectUrl is not null)
-            {
-                Navigation.NavigateTo(response.RedirectUrl, forceLoad: true);
-                return;
+                selectedFullName = repositories[0].FullName;
             }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not load repositories from GitHub. Check the App installation and try refreshing.";
+            repositories = [];
+            repositoryOptions = [];
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+            repositories = [];
+            repositoryOptions = [];
+        }
+        finally
+        {
+            loadingRepos = false;
+        }
+    }
 
-            Navigation.NavigateTo("/");
+    private Task OnRepositorySelected(string? value)
+    {
+        selectedFullName = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task Disconnect()
+    {
+        disconnecting = true;
+        errorMessage = null;
+
+        try
+        {
+            await Api.DisconnectAsync();
+            site = null;
+            await LoadRepositoriesAsync();
         }
         catch (ApiException ex)
         {
@@ -104,7 +505,71 @@
         }
         finally
         {
-            loading = false;
+            disconnecting = false;
+        }
+    }
+
+    private async Task ConnectRepository()
+    {
+        var selected = repositories.FirstOrDefault(repository =>
+            string.Equals(repository.FullName, selectedFullName, StringComparison.Ordinal));
+
+        if (selected is null)
+        {
+            errorMessage = "Select a repository from the list.";
+            return;
+        }
+
+        if (installationId is null or <= 0)
+        {
+            errorMessage = "Install the Hugo Matters GitHub App before connecting a repository.";
+            needsInstall = true;
+            return;
+        }
+
+        connecting = true;
+        errorMessage = null;
+        progress = new SteppedProgressRunner(
+            ConnectProgressMessages,
+            () => InvokeAsync(StateHasChanged));
+
+        try
+        {
+            await progress.RunAsync(
+                () => Api.ConnectAsync(installationId.Value, selected.OwnerLogin, selected.RepoName),
+                "Repository connected.");
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            await progress.DisposeAsync();
+            progress = null;
+            connecting = false;
+        }
+    }
+
+    private static string GetStatusBadgeClasses(string status)
+    {
+        var baseClasses = "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium";
+        return baseClasses + " " + (status switch
+        {
+            "Connected" => "bg-green-100 text-green-800",
+            "AccessLost" => "bg-red-100 text-red-800",
+            "Disconnected" => "bg-slate-100 text-slate-600",
+            _ => "bg-slate-100 text-slate-600",
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (progress is not null)
+        {
+            await progress.DisposeAsync();
+            progress = null;
         }
     }
 }

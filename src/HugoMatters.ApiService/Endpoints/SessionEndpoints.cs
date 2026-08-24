@@ -19,8 +19,14 @@ public static class SessionEndpoints
         group.MapGet("/", GetSessionAsync)
             .WithName("GetSession");
 
+        group.MapGet("/resumable", ListResumableSessionsAsync)
+            .WithName("ListResumableSessions");
+
         group.MapPost("/", StartSessionAsync)
             .WithName("StartSession");
+
+        group.MapPost("/resume", ResumeSessionAsync)
+            .WithName("ResumeSession");
 
         group.MapPost("/save", SaveAsync)
             .WithName("SaveSession");
@@ -31,6 +37,9 @@ public static class SessionEndpoints
         group.MapPost("/discard", DiscardAsync)
             .WithName("DiscardSession");
 
+        group.MapPost("/leave", LeaveAsync)
+            .WithName("LeaveSession");
+
         return app;
     }
 
@@ -40,6 +49,25 @@ public static class SessionEndpoints
     {
         var session = await sessionService.GetActiveSessionAsync(cancellationToken);
         return session is null ? Results.NotFound() : Results.Ok(session);
+    }
+
+    private static async Task<IResult> ListResumableSessionsAsync(
+        SessionService sessionService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var items = await sessionService.ListResumableSessionsAsync(cancellationToken);
+            return Results.Ok(items);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ApiResults.Error("invalid_state", ex.Message, StatusCodes.Status400BadRequest);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return ApiResults.Error("unauthorized", ex.Message, StatusCodes.Status401Unauthorized);
+        }
     }
 
     private static async Task<IResult> StartSessionAsync(
@@ -56,6 +84,11 @@ public static class SessionEndpoints
             var existing = await sessionService.GetActiveSessionAsync(cancellationToken);
             return Results.Conflict(existing);
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Pull requests are disabled", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("Pull requests are unavailable", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApiResults.Error("pull_requests_disabled", ex.Message, StatusCodes.Status400BadRequest);
+        }
         catch (InvalidOperationException ex)
         {
             return ApiResults.Error("invalid_state", ex.Message, StatusCodes.Status400BadRequest);
@@ -63,6 +96,52 @@ public static class SessionEndpoints
         catch (UnauthorizedAccessException ex)
         {
             return ApiResults.Error("unauthorized", ex.Message, StatusCodes.Status401Unauthorized);
+        }
+        catch (Octokit.NotFoundException ex)
+        {
+            return ApiResults.Error(
+                "github_not_found",
+                string.IsNullOrWhiteSpace(ex.Message) ? "GitHub resource was not found." : ex.Message,
+                StatusCodes.Status404NotFound);
+        }
+        catch (Octokit.ApiException ex) when ((int)ex.StatusCode is >= 400 and < 500)
+        {
+            return ApiResults.Error(
+                "github_request_failed",
+                string.IsNullOrWhiteSpace(ex.Message) ? "GitHub rejected the session request." : ex.Message,
+                (int)ex.StatusCode);
+        }
+    }
+
+    private static async Task<IResult> ResumeSessionAsync(
+        ResumeSessionRequest request,
+        SessionService sessionService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await sessionService.ResumeSessionAsync(request.PullRequestNumber, cancellationToken);
+            return Results.Ok(session);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+        {
+            var existing = await sessionService.GetActiveSessionAsync(cancellationToken);
+            return Results.Conflict(existing);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ApiResults.Error("invalid_state", ex.Message, StatusCodes.Status400BadRequest);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return ApiResults.Error("unauthorized", ex.Message, StatusCodes.Status401Unauthorized);
+        }
+        catch (Octokit.NotFoundException)
+        {
+            return ApiResults.Error(
+                "session_branch_missing",
+                "The session branch for that pull request no longer exists on GitHub.",
+                StatusCodes.Status409Conflict);
         }
     }
 
@@ -119,6 +198,27 @@ public static class SessionEndpoints
         {
             var result = await discardService.DiscardAsync(request, cancellationToken);
             if (result.Outcome == HugoMatters.Core.Models.DiscardOutcome.Succeeded)
+            {
+                return Results.Ok(result);
+            }
+
+            return Results.Json(result, statusCode: StatusCodes.Status400BadRequest);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ApiResults.Error("invalid_state", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
+    private static async Task<IResult> LeaveAsync(
+        LeaveSessionRequest request,
+        LeaveSessionService leaveSessionService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await leaveSessionService.LeaveAsync(request, cancellationToken);
+            if (result.Outcome == HugoMatters.Core.Models.LeaveSessionOutcome.Succeeded)
             {
                 return Results.Ok(result);
             }

@@ -35,34 +35,32 @@ paths:
                 $ref: "#/components/schemas/ConnectedSite"
         "404":
           description: No site connected
+    post:
+      tags: [Connection]
+      summary: Bind a Hugo site repository using a GitHub App installation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectRequest"
+      responses:
+        "200":
+          description: Connected site
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectedSite"
+        "400":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
     delete:
       tags: [Connection]
       summary: Disconnect local site binding (does not uninstall GitHub App)
       responses:
         "204":
           description: Disconnected
-
-  /api/connection/authorize:
-    post:
-      tags: [Connection]
-      summary: Start or complete GitHub App authorization / installation binding
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AuthorizeRequest"
-      responses:
-        "200":
-          description: Connected or redirect info for browser install flow
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthorizeResponse"
-        "400":
-          $ref: "#/components/responses/Error"
-        "401":
-          $ref: "#/components/responses/Error"
 
   /api/session:
     get:
@@ -387,8 +385,9 @@ components:
         message:
           type: string
 
-    AuthorizeRequest:
+    ConnectRequest:
       type: object
+      required: [installationId, owner, repo]
       properties:
         installationId:
           type: integer
@@ -397,21 +396,6 @@ components:
           type: string
         repo:
           type: string
-        callbackCode:
-          type: string
-          description: OAuth code when completing browser flow
-
-    AuthorizeResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          enum: [connected, redirect]
-        redirectUrl:
-          type: string
-          nullable: true
-        site:
-          $ref: "#/components/schemas/ConnectedSite"
 
     ConnectedSite:
       type: object

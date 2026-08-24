@@ -3,17 +3,35 @@ using Microsoft.Playwright;
 namespace HugoMatters.E2E.Tests.Smoke;
 
 /// <summary>
-/// Thin smoke test for the connect page shell. Full connect→edit→save requires GitHub App credentials.
+/// Thin smoke tests for auth gate and connect page shell.
 /// </summary>
 public sealed class EditingWorkflowTests
 {
     [Fact]
-    public async Task Connect_page_loads_when_web_is_running()
+    public async Task Root_redirects_to_welcome_when_web_is_running()
     {
         var baseUrl = Environment.GetEnvironmentVariable("HUGO_MATTERS_WEB_URL");
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            // Skip when no running app URL is provided (CI/local without Aspire).
+            return;
+        }
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync();
+        var page = await browser.NewPageAsync();
+        await page.GotoAsync($"{baseUrl.TrimEnd('/')}/");
+
+        var signInButton = page.Locator("a", new PageLocatorOptions { HasTextString = "Sign in with GitHub" });
+        await signInButton.WaitForAsync();
+        Assert.True(await signInButton.IsVisibleAsync());
+    }
+
+    [Fact]
+    public async Task Connect_requires_auth_when_web_is_running()
+    {
+        var baseUrl = Environment.GetEnvironmentVariable("HUGO_MATTERS_WEB_URL");
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
             return;
         }
 
@@ -21,8 +39,9 @@ public sealed class EditingWorkflowTests
         await using var browser = await playwright.Chromium.LaunchAsync();
         var page = await browser.NewPageAsync();
         await page.GotoAsync($"{baseUrl.TrimEnd('/')}/connect");
-        var heading = await page.TextContentAsync("h1");
-        Assert.NotNull(heading);
-        Assert.Contains("Connect", heading, StringComparison.OrdinalIgnoreCase);
+
+        var signInButton = page.Locator("a", new PageLocatorOptions { HasTextString = "Sign in with GitHub" });
+        await signInButton.WaitForAsync();
+        Assert.True(await signInButton.IsVisibleAsync());
     }
 }

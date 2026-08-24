@@ -22,7 +22,13 @@ All Technical Context unknowns from the plan are resolved below.
 
 ## 2. GitHub App as primary repository access
 
-**Decision**: Use a GitHub App from day one for private and public repos. Solo owner installs the App on their site repository. Credentials (App ID, Client ID, Client secret, private key PEM) live in user secrets / environment variables — never in source or generated site content. Prefer installation access tokens (short-lived) over PATs as the primary model.
+**Decision**: Use a GitHub App from day one for private and public repos. **Web** owns GitHub App user sign-in (OAuth authorize + `/auth/callback`, encrypted cookie session with owner login, user access token, and installation id). **ApiService** owns installation access tokens (App JWT + private key) and `ConnectionService.ConnectAsync(installationId, owner, repo)` only after Web has the installation id. PAT-only mode is **not** in v1.
+
+**Credential split**:
+- Web: GitHub App Client ID + Client secret (user OAuth); callback base URI `https://localhost:<web-port>/auth/callback`
+- ApiService: App ID + private key PEM (installation tokens for Contents/Git/PR)
+
+Credentials live in Aspire parameters / user secrets — never in source or generated site content.
 
 **Minimum permissions (least privilege)**:
 - Repository Contents: Read & write (read trees, create commits)
@@ -32,7 +38,7 @@ All Technical Context unknowns from the plan are resolved below.
 
 **Dev setup (explicit plan item)**:
 1. Create a GitHub App in the owner’s account (or org) with the permissions above.
-2. Set callback URL to the local ApiService/Web OAuth callback (Aspire-forwarded HTTPS/HTTP URL).
+2. Set callback URL to the local Web OAuth callback `https://localhost:<web-port>/auth/callback` (Aspire-forwarded HTTPS URL).
 3. Generate a private key; store path or PEM via `dotnet user-secrets` on ApiService (and document env var names).
 4. Document App ID / Client ID / Client secret / webhook optional (webhooks not required for v1 if we poll/refresh on user actions).
 5. Owner completes install → select the Hugo site repo → product records `installationId` + repo identity locally.

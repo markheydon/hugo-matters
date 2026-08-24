@@ -140,9 +140,28 @@ public static class HugoProfileThemePack
         DataType = field.DataType,
         Required = field.Required,
         Default = field.DefaultValue is { } value ? ConvertJsonElement(value) : null,
+        SourceKeys = field.SourceKeys ?? [],
+        Scope = ResolveScope(field),
         Options = field.Options,
         EditorWidget = field.EditorWidget,
     };
+
+    private static string ResolveScope(FieldDocument field)
+    {
+        if (!string.IsNullOrWhiteSpace(field.Scope))
+        {
+            return field.Scope.Trim().ToLowerInvariant() switch
+            {
+                "hugo" or "site" or "core" => "hugo",
+                _ => "theme",
+            };
+        }
+
+        // Convention: root Hugo keys vs theme params.*
+        return field.Key.StartsWith("params.", StringComparison.OrdinalIgnoreCase)
+            ? "theme"
+            : "hugo";
+    }
 
     private static object? ConvertJsonElement(JsonElement element)
     {

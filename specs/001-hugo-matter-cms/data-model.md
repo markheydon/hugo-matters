@@ -16,9 +16,9 @@ Solo person using the local app. Not a multi-tenant user table in v1.
 | Field | Type | Notes |
 |-------|------|-------|
 | Local identity | implicit | Single local machine user of the app |
-| GitHub account login | string | From App installation / OAuth identity when available |
+| GitHub account login | string | From Web cookie claims after GitHub App user sign-in (`/auth/callback`) |
 
-**Validation**: N/A beyond successful GitHub App authorization.
+**Validation**: N/A beyond successful GitHub sign-in. Owner login in claims must match the repository owner when binding a personal repo (org repos use the installation account context).
 
 ---
 

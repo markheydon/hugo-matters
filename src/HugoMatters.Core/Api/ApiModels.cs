@@ -40,6 +40,27 @@ public sealed class DiscardResult
 }
 
 /// <summary>
+/// Request to leave the active session without closing its pull request.
+/// </summary>
+public sealed class LeaveSessionRequest
+{
+    /// <summary>Must be true when the session has unsaved local edits.</summary>
+    public required bool ConfirmLeaveUnsaved { get; init; }
+}
+
+/// <summary>
+/// Result of leaving (detaching) a local editing session.
+/// </summary>
+public sealed class LeaveSessionResult
+{
+    /// <summary>Outcome of the leave operation.</summary>
+    public required Models.LeaveSessionOutcome Outcome { get; init; }
+
+    /// <summary>Human-readable message.</summary>
+    public required string Message { get; init; }
+}
+
+/// <summary>
 /// Request to save buffered content.
 /// </summary>
 public sealed class SaveRequest
@@ -55,6 +76,15 @@ public sealed class DiscardRequest
 {
     /// <summary>Must be true when the session has unsaved local edits.</summary>
     public required bool ConfirmDiscardUnsaved { get; init; }
+}
+
+/// <summary>
+/// Request to resume a local session from an open Hugo Matters pull request.
+/// </summary>
+public sealed class ResumeSessionRequest
+{
+    /// <summary>Open pull request number to bind as the active session.</summary>
+    public required int PullRequestNumber { get; init; }
 }
 
 /// <summary>

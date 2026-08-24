@@ -19,7 +19,7 @@
             rows="@Rows"
             placeholder="@Placeholder"
             disabled="@Disabled"
-            spellcheck="@SpellCheck"
+            spellcheck="@(SpellCheck ? "true" : "false")"
             lang="@Lang"
             value="@Value"
             @oninput="HandleInput"></textarea>
@@ -32,7 +32,7 @@
             class="@InputClasses"
             placeholder="@Placeholder"
             disabled="@Disabled"
-            spellcheck="@SpellCheck"
+            spellcheck="@(SpellCheck ? "true" : "false")"
             lang="@Lang"
             value="@Value"
             @oninput="HandleInput" />
@@ -48,7 +48,9 @@
 </div>
 
 @code {
-  private static readonly string InputClasses = "block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100";
+    private static readonly string InputClasses = "block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100";
+
+    private bool _skipRender;
 
     [Parameter]
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
@@ -92,9 +94,24 @@
     [Parameter]
     public EventCallback<string?> ValueChanged { get; set; }
 
+    /// <inheritdoc />
+    protected override bool ShouldRender()
+    {
+        // After @oninput we notify the parent; skipping the echo re-render keeps the caret put.
+        if (_skipRender)
+        {
+            _skipRender = false;
+            return false;
+        }
+
+        return true;
+    }
+
     private async Task HandleInput(ChangeEventArgs e)
     {
-        Value = e.Value?.ToString();
-        await ValueChanged.InvokeAsync(Value);
+        var next = e.Value?.ToString();
+        Value = next;
+        _skipRender = true;
+        await ValueChanged.InvokeAsync(next);
     }
 }

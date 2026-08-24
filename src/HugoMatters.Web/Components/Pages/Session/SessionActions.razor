@@ -1,10 +1,11 @@
 @namespace HugoMatters.Web.Components.Pages.Session
-@rendermode InteractiveServer
 @inject HugoMattersApiClient Api
 
 <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
     <h3 class="text-sm font-semibold text-slate-900">Session actions</h3>
-    <p class="mt-1 text-sm text-slate-600">Publish merges your pull request, or discard closes it without merging.</p>
+    <p class="mt-1 text-sm text-slate-600">
+        Save and publish work on this pull request, or discard to close it without merging. Use Leave session above to switch without closing the PR.
+    </p>
 
     <div class="mt-4">
     <Banner
@@ -15,14 +16,14 @@
     </div>
 
     <div class="mt-4 flex flex-wrap gap-3">
+        <Button Variant="Button.ButtonVariant.Secondary" IconName="save" OnClick="Save" Loading="@saving" Disabled="@(Session.State != "Active")">
+            Save to PR
+        </Button>
         <Button IconName="upload" OnClick="Publish" Loading="@publishing" Disabled="@(Session.State != "Active")">
             Publish
         </Button>
         <Button Variant="Button.ButtonVariant.Danger" IconName="trash" OnClick="RequestDiscard" Loading="@discarding" Disabled="@(Session.State != "Active")">
             Discard session
-        </Button>
-        <Button Variant="Button.ButtonVariant.Secondary" IconName="save" OnClick="Save" Loading="@saving" Disabled="@(Session.State != "Active")">
-            Save to PR
         </Button>
     </div>
 </div>
@@ -31,6 +32,7 @@
     IsOpen="@showDiscardDialog"
     IsOpenChanged="@((bool v) => showDiscardDialog = v)"
     Loading="@discarding"
+    HasUnsavedEdits="@Session.HasUnsavedLocalEdits"
     OnConfirm="ConfirmDiscard" />
 
 @code {
@@ -97,15 +99,10 @@
         }
     }
 
-    private void RequestDiscard()
+    private Task RequestDiscard()
     {
-        if (Session.HasUnsavedLocalEdits)
-        {
-            showDiscardDialog = true;
-            return;
-        }
-
-        _ = ConfirmDiscard();
+        showDiscardDialog = true;
+        return Task.CompletedTask;
     }
 
     private async Task ConfirmDiscard()
@@ -117,16 +114,17 @@
         {
             var result = await Api.DiscardSessionAsync(new DiscardRequest
             {
-                ConfirmDiscardUnsaved = Session.HasUnsavedLocalEdits || showDiscardDialog,
+                ConfirmDiscardUnsaved = true,
             });
 
             showDiscardDialog = false;
 
-            if (result.Outcome == "Succeeded")
+            if (string.Equals(result.Outcome, "Succeeded", StringComparison.OrdinalIgnoreCase))
             {
                 ShowResult(result.Message, Banner.BannerVariant.Success);
+                await OnSessionChanged.InvokeAsync();
             }
-            else if (result.Outcome == "ConfirmationRequired")
+            else if (string.Equals(result.Outcome, "ConfirmationRequired", StringComparison.OrdinalIgnoreCase))
             {
                 showDiscardDialog = true;
                 ShowResult(result.Message, Banner.BannerVariant.Warning);
@@ -135,8 +133,6 @@
             {
                 ShowResult(result.Message, Banner.BannerVariant.Error);
             }
-
-            await OnSessionChanged.InvokeAsync();
         }
         catch (ApiException ex)
         {

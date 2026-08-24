@@ -9,7 +9,7 @@ public sealed class DockerSitePreviewOptions
     public const string SectionName = "SitePreview";
 
     /// <summary>Hugo container image to run.</summary>
-    public string HugoImage { get; set; } = "klakegg/hugo:ext";
+    public string HugoImage { get; set; } = "docker.io/hugomods/hugo:latest";
 
     /// <summary>Container runtime command (<c>docker</c> or <c>podman</c>).</summary>
     public string? ContainerRuntime { get; set; }

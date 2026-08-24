@@ -77,7 +77,9 @@ public static class PreviewEndpoints
             if (existing is not null
                 && existing.Status is SitePreviewState.Starting or SitePreviewState.Running)
             {
-                return Results.Conflict(ToResponse(existing));
+                // Idempotent: a concurrent or retried start should observe the in-flight preview,
+                // not surface a bare HTTP 409 "Conflict" in the UI.
+                return Results.Ok(ToResponse(existing));
             }
 
             var tipSha = await gitHubRepository.GetBranchTipShaAsync(
@@ -95,9 +97,29 @@ public static class PreviewEndpoints
 
             return Results.Ok(ToResponse(preview));
         }
+        catch (Octokit.NotFoundException)
+        {
+            return ApiResults.Error(
+                "session_branch_missing",
+                "The session branch no longer exists on GitHub (it may have been deleted during a failed discard). Discard this session and start a new one.",
+                StatusCodes.Status409Conflict);
+        }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already running", StringComparison.OrdinalIgnoreCase))
         {
-            return Results.Conflict();
+            var session = await sessionService.GetActiveSessionAsync(cancellationToken);
+            if (session is not null)
+            {
+                var existing = await metadataStore.GetSitePreviewAsync(session.Id, cancellationToken);
+                if (existing is not null)
+                {
+                    return Results.Ok(ToResponse(existing));
+                }
+            }
+
+            return ApiResults.Error(
+                "preview_already_running",
+                "A site preview is already running for this session.",
+                StatusCodes.Status409Conflict);
         }
         catch (InvalidOperationException ex)
         {

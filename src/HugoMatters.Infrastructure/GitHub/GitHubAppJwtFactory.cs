@@ -30,21 +30,32 @@ public sealed class GitHubAppJwtFactory
             throw new InvalidOperationException("GitHub App credentials are not configured.");
         }
 
-        using var rsa = RSA.Create();
-        rsa.ImportFromPem(ResolvePrivateKeyPem());
+        // Export parameters so signing does not depend on a disposable RSA instance
+        // (RsaSecurityKey(RSA) retains the RSA; disposing it breaks later sign/retry).
+        RSAParameters rsaParameters;
+        using (var rsa = RSA.Create())
+        {
+            rsa.ImportFromPem(ResolvePrivateKeyPem());
+            rsaParameters = rsa.ExportParameters(includePrivateParameters: true);
+        }
 
         var credentials = new SigningCredentials(
-            new RsaSecurityKey(rsa),
+            new RsaSecurityKey(rsaParameters),
             SecurityAlgorithms.RsaSha256);
 
+        // GitHub requires iss, iat, and exp. IssuedAt must be present as claim "iat".
         var now = DateTime.UtcNow;
-        var token = new JwtSecurityToken(
-            issuer: _options.AppId.ToString(),
-            notBefore: now.AddSeconds(-60),
-            expires: now.AddMinutes(9),
-            signingCredentials: credentials);
+        var handler = new JwtSecurityTokenHandler();
+        var token = handler.CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = _options.AppId.ToString(),
+            IssuedAt = now,
+            NotBefore = now.AddSeconds(-60),
+            Expires = now.AddMinutes(9),
+            SigningCredentials = credentials,
+        });
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return handler.WriteToken(token);
     }
 
     private string ResolvePrivateKeyPem()

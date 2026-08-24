@@ -87,8 +87,8 @@ public sealed class SaveEndpointTests
     private static async Task ConnectSite(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(
-            "/api/connection/authorize",
-            new AuthorizeRequest { InstallationId = 42, Owner = "owner", Repo = "repo" });
+            "/api/connection",
+            new ConnectRequest { InstallationId = 42, Owner = "owner", Repo = "repo" });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }

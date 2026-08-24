@@ -44,13 +44,15 @@ public static class DependencyInjection
         services.AddDbContext<HugoMattersDbContext>(options =>
             options.UseSqlite($"Data Source={databasePath}"));
 
-        services.AddHttpClient(nameof(GitHubConnectionHandler));
-        services.AddHttpClient(nameof(DockerSitePreviewOrchestrator));
+        services.AddHttpClient(nameof(DockerSitePreviewOrchestrator), client =>
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("HugoMatters");
+            client.Timeout = TimeSpan.FromMinutes(5);
+        });
 
         services.AddSingleton<IThemePackRegistry, ThemePackRegistry>();
         services.AddSingleton<GitHubAppJwtFactory>();
         services.AddSingleton<IGitHubRepository, GitHubAppClient>();
-        services.AddScoped<GitHubConnectionHandler>();
         services.AddScoped<SessionRepository>();
         services.AddScoped<IMetadataStore, EfMetadataStore>();
         services.AddSingleton<IContentBufferStore, InMemoryContentBufferStore>();
@@ -61,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<SaveService>();
         services.AddScoped<PublishService>();
         services.AddScoped<DiscardService>();
+        services.AddScoped<LeaveSessionService>();
         services.AddScoped<ContentBufferService>();
         services.AddScoped<SiteConfigService>();
         services.AddSingleton<EditorPreviewService>();

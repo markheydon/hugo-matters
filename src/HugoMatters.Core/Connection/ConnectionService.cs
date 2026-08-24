@@ -1,3 +1,4 @@
+using HugoMatters.Core.GitHub;
 using HugoMatters.Core.Models;
 using HugoMatters.Core.Ports;
 
@@ -59,6 +60,8 @@ public sealed class ConnectionService
             repoName,
             cancellationToken);
 
+        GitHubRepositoryRequirements.EnsurePullRequestsAvailable(repo);
+
         var existing = await _metadataStore.GetConnectedSiteAsync(cancellationToken);
         if (existing is not null)
         {
@@ -81,6 +84,37 @@ public sealed class ConnectionService
 
         await _metadataStore.SaveConnectedSiteAsync(site, cancellationToken);
         return site;
+    }
+
+    /// <summary>
+    /// Checks whether the connected repository can start an editing session (pull requests enabled).
+    /// </summary>
+    public async Task<RepositoryReadiness> GetSessionReadinessAsync(CancellationToken cancellationToken = default)
+    {
+        var site = await _metadataStore.GetConnectedSiteAsync(cancellationToken);
+        if (site is null || site.Status == SiteStatus.Disconnected)
+        {
+            return new RepositoryReadiness(
+                Ready: false,
+                Code: "not_connected",
+                Message: "Connect a Hugo site repository before starting an editing session.");
+        }
+
+        var repo = await _gitHubRepository.GetRepositoryAsync(
+            site.InstallationId,
+            site.OwnerLogin,
+            site.RepoName,
+            cancellationToken);
+
+        if (!repo.HasPullRequests)
+        {
+            return new RepositoryReadiness(
+                Ready: false,
+                Code: "pull_requests_disabled",
+                Message: GitHubRepositoryRequirements.PullRequestsRequiredMessage(repo.OwnerLogin, repo.RepoName));
+        }
+
+        return new RepositoryReadiness(Ready: true, Code: null, Message: null);
     }
 
     /// <summary>
@@ -141,6 +175,34 @@ public sealed class ConnectionService
             ThemePackVersion = site.ThemePackVersion,
             ConnectedAt = site.ConnectedAt,
             Status = SiteStatus.AccessLost,
+        };
+
+        await _metadataStore.SaveConnectedSiteAsync(updated, cancellationToken);
+    }
+
+    /// <summary>
+    /// Restores <see cref="SiteStatus.Connected"/> after a transient permission or auth false positive.
+    /// </summary>
+    public async Task RestoreConnectedStatusAsync(CancellationToken cancellationToken = default)
+    {
+        var site = await _metadataStore.GetConnectedSiteAsync(cancellationToken);
+        if (site is null || site.Status == SiteStatus.Connected)
+        {
+            return;
+        }
+
+        var updated = new ConnectedSite
+        {
+            Id = site.Id,
+            InstallationId = site.InstallationId,
+            OwnerLogin = site.OwnerLogin,
+            RepoName = site.RepoName,
+            DefaultBranch = site.DefaultBranch,
+            HtmlUrl = site.HtmlUrl,
+            ThemePackId = site.ThemePackId,
+            ThemePackVersion = site.ThemePackVersion,
+            ConnectedAt = site.ConnectedAt,
+            Status = SiteStatus.Connected,
         };
 
         await _metadataStore.SaveConnectedSiteAsync(updated, cancellationToken);

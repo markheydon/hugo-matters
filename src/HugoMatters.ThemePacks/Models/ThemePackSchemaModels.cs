@@ -80,6 +80,14 @@ public sealed class FieldDocument
     [JsonPropertyName("default")]
     public JsonElement? DefaultValue { get; set; }
 
+    /// <summary>Alternate Hugo config keys that map into <see cref="Key"/> when loading.</summary>
+    [JsonPropertyName("sourceKeys")]
+    public List<string>? SourceKeys { get; set; }
+
+    /// <summary><c>hugo</c> or <c>theme</c> — used to group fields in the site config editor.</summary>
+    [JsonPropertyName("scope")]
+    public string? Scope { get; set; }
+
     [JsonPropertyName("options")]
     public List<string>? Options { get; set; }
 

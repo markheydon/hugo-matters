@@ -1,5 +1,7 @@
 ﻿@page "/"
-@rendermode InteractiveServer
+@inherits DeferredLoadPageBase
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
 @inject HugoMattersApiClient Api
 @inject NavigationManager Navigation
 
@@ -69,7 +71,7 @@ else
                         @site.ThemePackId
                         @if (site.ThemePackVersion is not null)
                         {
-                            <span class="text-slate-500">@($"v{site.ThemePackVersion}")</span>
+                            <span class="text-slate-500">@($" v{site.ThemePackVersion}")</span>
                         }
                     </dd>
                 </div>
@@ -141,10 +143,7 @@ else
     private bool loading = true;
     private bool disconnecting;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadData();
-    }
+    protected override Task LoadPageAsync() => LoadData();
 
     private async Task LoadData()
     {

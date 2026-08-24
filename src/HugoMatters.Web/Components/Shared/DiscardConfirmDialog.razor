@@ -1,10 +1,18 @@
 @namespace HugoMatters.Web.Components.Shared
 
-<Dialog Title="Discard unsaved changes?" IsOpen="@IsOpen" IsOpenChanged="@IsOpenChanged" Footer="@FooterContent">
-    <p class="text-sm text-slate-600">
-        You have unsaved local edits. Discarding the session will lose these changes permanently.
-        Are you sure you want to continue?
-    </p>
+<Dialog Title="Discard this session?" IsOpen="@IsOpen" IsOpenChanged="@IsOpenChanged" Footer="@FooterContent">
+    <div class="space-y-3 text-sm text-slate-600">
+        <p>
+            This cannot be undone. Discarding will close the pull request without merging,
+            delete the session branch on GitHub, and end the local editing session.
+        </p>
+        @if (HasUnsavedEdits)
+        {
+            <p class="font-medium text-slate-800">
+                You also have unsaved local edits. Those changes will be lost permanently.
+            </p>
+        }
+    </div>
 </Dialog>
 
 @code {
@@ -18,6 +26,9 @@
     public bool Loading { get; set; }
 
     [Parameter]
+    public bool HasUnsavedEdits { get; set; }
+
+    [Parameter]
     public EventCallback OnConfirm { get; set; }
 
     private RenderFragment FooterContent => __builder =>
@@ -25,14 +36,14 @@
         __builder.OpenComponent<Button>(0);
         __builder.AddAttribute(1, "Variant", Button.ButtonVariant.Secondary);
         __builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create(this, Cancel));
-        __builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Keep editing")));
+        __builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Keep session")));
         __builder.CloseComponent();
 
         __builder.OpenComponent<Button>(4);
         __builder.AddAttribute(5, "Variant", Button.ButtonVariant.Danger);
         __builder.AddAttribute(6, "OnClick", EventCallback.Factory.Create(this, Confirm));
         __builder.AddAttribute(7, "Loading", Loading);
-        __builder.AddAttribute(8, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Discard anyway")));
+        __builder.AddAttribute(8, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Discard session")));
         __builder.CloseComponent();
     };
 

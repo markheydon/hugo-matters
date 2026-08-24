@@ -93,6 +93,13 @@ public static class ContentEndpoints
         try
         {
             var normalized = path.TrimStart('/');
+            // Blazor / HTTP may leave %2F encoded when the UI double-escaped the path.
+            if (normalized.Contains("%2F", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("%2f", StringComparison.Ordinal))
+            {
+                normalized = Uri.UnescapeDataString(normalized);
+            }
+
             var item = await contentService.GetAsync(normalized, cancellationToken);
             return item is null
                 ? ApiResults.Error("not_found", "Content item was not found.", StatusCodes.Status404NotFound)

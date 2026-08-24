@@ -1,22 +1,26 @@
 @namespace HugoMatters.Web.Components.Content
 
-<Select
-    Label="Spell-check language"
-    Value="@SelectedLanguage"
-    ValueChanged="OnLanguageChanged"
-    Options="@LanguageOptions" />
+<div class="space-y-1">
+    <Select
+        Label="Spell-check language"
+        Value="@SelectedLanguage"
+        ValueChanged="OnLanguageChanged"
+        Options="@LanguageOptions" />
+    <p class="text-xs text-slate-500">
+        Uses your browser’s built-in spellchecker. Squiggles appear only if that language dictionary is installed on this device.
+    </p>
+</div>
 
 @code {
     [Parameter]
-    public string SelectedLanguage { get; set; } = "en";
+    public string SelectedLanguage { get; set; } = "en-GB";
 
     [Parameter]
     public EventCallback<string> SelectedLanguageChanged { get; set; }
 
     private static readonly IReadOnlyList<Select.SelectOption> LanguageOptions = [
-        new("en", "English"),
-        new("en-US", "English (US)"),
         new("en-GB", "English (UK)"),
+        new("en-US", "English (US)"),
         new("de", "German"),
         new("fr", "French"),
         new("es", "Spanish"),

@@ -1,5 +1,6 @@
 @page "/content/{*contentPath}"
-@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
 @inject HugoMattersApiClient Api
 @inject NavigationManager Navigation
 
@@ -64,6 +65,7 @@ else
                     <h2 class="text-sm font-semibold text-slate-900">Frontmatter</h2>
                     <div class="mt-4">
                         <ThemeFieldEditor
+                            @key="@($"fields-{spellCheckLanguage}")"
                             Fields="@themeFields"
                             FrontMatter="@frontMatter"
                             FrontMatterChanged="OnFrontMatterChanged"
@@ -75,6 +77,7 @@ else
                     <h2 class="text-sm font-semibold text-slate-900">Body</h2>
                     <div class="mt-4">
                         <TextField
+                            @key="@($"body-{spellCheckLanguage}")"
                             Multiline="true"
                             Rows="16"
                             Value="@body"
@@ -101,7 +104,7 @@ else
     private List<FieldDefinitionDto> themeFields = [];
     private Dictionary<string, object?> frontMatter = new();
     private string body = "";
-    private string spellCheckLanguage = "en";
+    private string spellCheckLanguage = "en-GB";
     private bool loading = true;
     private bool saving;
     private bool deleting;
@@ -110,10 +113,13 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (ContentPath is not null)
+        // Defer API work until interactive so prerender paints the loading UI immediately.
+        if (!RendererInfo.IsInteractive || ContentPath is null)
         {
-            await LoadContent();
+            return;
         }
+
+        await LoadContent();
     }
 
     private async Task LoadContent()
@@ -123,7 +129,8 @@ else
 
         try
         {
-            item = await Api.GetContentAsync(ContentPath!);
+            var path = NormalizeContentPath(ContentPath!);
+            item = await Api.GetContentAsync(path);
             if (item is null)
             {
                 return;
@@ -151,6 +158,12 @@ else
         {
             loading = false;
         }
+    }
+
+    private static string NormalizeContentPath(string path)
+    {
+        var decoded = Uri.UnescapeDataString(path.Trim().TrimStart('/'));
+        return decoded.Replace('\\', '/');
     }
 
     private async Task OnFrontMatterChanged(Dictionary<string, object?> updated)

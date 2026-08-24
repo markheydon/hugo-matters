@@ -96,7 +96,15 @@ description: "Task list for Hugo Matters CMS feature implementation"
 - [x] T033 [US1] Handle revoked or lost installation authorization with safe failure in src/HugoMatters.Infrastructure/GitHub/GitHubAppClient.cs
 - [x] T034 [P] [US1] Add API handler tests for connection endpoints in tests/HugoMatters.ApiService.Tests/Connection/ConnectionEndpointsTests.cs
 
-**Checkpoint**: User Story 1 fully functional — owner can connect and disconnect a site
+### Retrospective: GitHub sign-in in Web (US1 auth boundary)
+
+- [x] T034a [US1] Port GitHubAuthGateway, cookie auth, and `/auth/*` routes in src/HugoMatters.Web/Authentication/ and src/HugoMatters.Web/Program.cs
+- [x] T034b [US1] Add Welcome landing page and AuthorizeRouteView gate in src/HugoMatters.Web/Components/
+- [x] T034c [US1] Replace POST /api/connection/authorize with POST /api/connection in src/HugoMatters.ApiService/Endpoints/ConnectionEndpoints.cs; remove GitHubConnectionHandler
+- [x] T034d [US1] Split Aspire parameters (OAuth on Web, App JWT on ApiService) in src/HugoMatters.AppHost/AppHost.cs
+- [x] T034e [P] [US1] Add Web auth gateway tests and update connection API / E2E smoke tests
+
+**Checkpoint**: User Story 1 fully functional — owner signs in with GitHub, connects, and disconnects a site
 
 ---
 
