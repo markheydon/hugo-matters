@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Text.Json;
 using HugoMatters.Core.Content;
 
 namespace HugoMatters.Core.Tests.Content;
@@ -96,5 +97,39 @@ Body
         Assert.Equal(false, parsed.FrontMatter["draft"]);
         Assert.Equal(3, parsed.FrontMatter["count"]);
         Assert.Equal("Created body.", parsed.Body);
+    }
+
+    [Fact]
+    public void Serialize_JsonElementArrayTags_WritesYamlSequence()
+    {
+        using var tagsJson = JsonDocument.Parse("""["Turpin Enterprises Journal"]""");
+        var frontMatter = new OrderedDictionary(StringComparer.Ordinal)
+        {
+            ["title"] = "Post",
+            ["tags"] = tagsJson.RootElement.Clone(),
+        };
+
+        var serialized = HugoContentDocument.Create(frontMatter, "Body").Serialize();
+
+        Assert.Contains("tags:", serialized, StringComparison.Ordinal);
+        Assert.Contains("- Turpin Enterprises Journal", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("""["Turpin Enterprises Journal"]""", serialized, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Serialize_RepairsStringifiedJsonArrayTags()
+    {
+        const string corrupted = """
+---
+title: Post
+tags: '["Turpin Enterprises Journal"]'
+---
+Body
+""";
+
+        var serialized = HugoContentDocument.Parse(corrupted).Serialize();
+
+        Assert.Contains("- Turpin Enterprises Journal", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("""["Turpin Enterprises Journal"]""", serialized, StringComparison.Ordinal);
     }
 }

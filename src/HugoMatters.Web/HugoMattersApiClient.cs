@@ -263,7 +263,20 @@ public sealed class HugoMattersApiClient(HttpClient httpClient)
             // Ignore parse failures; fall back to status text.
         }
 
-        var message = error?.Message ?? response.ReasonPhrase ?? "Request failed";
+        var message = error?.Message;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = response.StatusCode switch
+            {
+                HttpStatusCode.Conflict =>
+                    "The request conflicted with the current preview or session state. Refresh status and try again.",
+                HttpStatusCode.NotFound => "The requested resource was not found.",
+                HttpStatusCode.Unauthorized => "You need to sign in again.",
+                HttpStatusCode.Forbidden => "You do not have permission to do that.",
+                _ => response.ReasonPhrase ?? $"Request failed ({(int)response.StatusCode}).",
+            };
+        }
+
         throw new ApiException(message, error?.Code, (int)response.StatusCode);
     }
 }

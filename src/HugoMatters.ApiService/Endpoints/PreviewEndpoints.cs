@@ -62,7 +62,10 @@ public static class PreviewEndpoints
             var session = await sessionService.GetActiveSessionAsync(cancellationToken);
             if (session is null)
             {
-                return Results.Conflict();
+                return ApiResults.Error(
+                    "no_active_session",
+                    "No active editing session. Start a session before opening site preview.",
+                    StatusCodes.Status409Conflict);
             }
 
             if (session.HasUnsavedLocalEdits)
@@ -73,11 +76,12 @@ public static class PreviewEndpoints
                     StatusCodes.Status400BadRequest);
             }
 
-            var existing = await metadataStore.GetSitePreviewAsync(session.Id, cancellationToken);
+            // Reconcile first so a stuck Starting/Failed state is not treated as a live preview.
+            var existing = await previewOrchestrator.GetStatusAsync(session.Id, cancellationToken);
             if (existing is not null
                 && existing.Status is SitePreviewState.Starting or SitePreviewState.Running)
             {
-                return Results.Conflict(ToResponse(existing));
+                return Results.Ok(ToResponse(existing));
             }
 
             var tipSha = await gitHubRepository.GetBranchTipShaAsync(
@@ -104,7 +108,10 @@ public static class PreviewEndpoints
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already running", StringComparison.OrdinalIgnoreCase))
         {
-            return Results.Conflict();
+            return ApiResults.Error(
+                "preview_already_running",
+                "A site preview is already running for this session. Stop it before starting a new one.",
+                StatusCodes.Status409Conflict);
         }
         catch (InvalidOperationException ex)
         {
@@ -114,7 +121,7 @@ public static class PreviewEndpoints
 
     private static async Task<IResult> GetSitePreviewAsync(
         SessionService sessionService,
-        IMetadataStore metadataStore,
+        ISitePreviewOrchestrator previewOrchestrator,
         CancellationToken cancellationToken)
     {
         var session = await sessionService.GetActiveSessionAsync(cancellationToken);
@@ -123,7 +130,8 @@ public static class PreviewEndpoints
             return Results.NotFound();
         }
 
-        var preview = await metadataStore.GetSitePreviewAsync(session.Id, cancellationToken);
+        // Use the orchestrator so Starting/Running are reconciled against the live container.
+        var preview = await previewOrchestrator.GetStatusAsync(session.Id, cancellationToken);
         if (preview is null || preview.Status == SitePreviewState.Stopped)
         {
             return Results.NotFound();
@@ -151,7 +159,8 @@ public static class PreviewEndpoints
     private static SitePreviewResponse ToResponse(SitePreviewInfo preview) => new()
     {
         Id = preview.Id,
-        Status = preview.Status,
+        // Send a plain string so the Web client never has to guess enum/number JSON shapes.
+        Status = preview.Status.ToString(),
         BaseUrl = preview.BaseUrl,
         SourceRef = preview.SourceRef,
         ErrorMessage = preview.ErrorMessage,

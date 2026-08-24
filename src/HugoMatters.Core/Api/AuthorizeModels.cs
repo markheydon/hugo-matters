@@ -1,5 +1,3 @@
-using HugoMatters.Core.Models;
-
 namespace HugoMatters.Core.Api;
 
 /// <summary>
@@ -22,8 +20,8 @@ public sealed class SitePreviewResponse
     /// <summary>Preview instance identifier.</summary>
     public string? Id { get; init; }
 
-    /// <summary>Current preview status.</summary>
-    public required SitePreviewState Status { get; init; }
+    /// <summary>Current preview status (Starting, Running, Failed, Stopped).</summary>
+    public required string Status { get; init; }
 
     /// <summary>Localhost URL when running.</summary>
     public string? BaseUrl { get; init; }

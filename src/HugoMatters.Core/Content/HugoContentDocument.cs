@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using YamlDotNet.RepresentationModel;
 
 namespace HugoMatters.Core.Content;
@@ -186,17 +187,64 @@ public sealed class HugoContentDocument
     {
         null => new YamlScalarNode(string.Empty) { Style = YamlDotNet.Core.ScalarStyle.Plain },
         bool b => new YamlScalarNode(b ? "true" : "false"),
-        string s => new YamlScalarNode(s),
+        string s => ConvertStringToYamlNode(s),
+        JsonElement json => ConvertJsonElementToYamlNode(json),
         int or long or short or byte => new YamlScalarNode(Convert.ToString(value, CultureInfo.InvariantCulture)),
         float or double or decimal => new YamlScalarNode(Convert.ToString(value, CultureInfo.InvariantCulture)),
         DateTime dt => new YamlScalarNode(dt.ToString("o", CultureInfo.InvariantCulture)),
         DateTimeOffset dto => new YamlScalarNode(dto.ToString("o", CultureInfo.InvariantCulture)),
-        IEnumerable<object?> sequence => new YamlSequenceNode(sequence.Select(ConvertToYamlNode)),
         IDictionary dict => new YamlMappingNode(
             dict.Cast<DictionaryEntry>()
                 .Select(e => new KeyValuePair<YamlNode, YamlNode>(
                     new YamlScalarNode(e.Key?.ToString() ?? string.Empty),
                     ConvertToYamlNode(e.Value)))),
+        // Non-string enumerables must stay sequences (tags, authors, etc.). Match after
+        // IDictionary so maps are not flattened, and exclude string.
+        IEnumerable enumerable when value is not string => new YamlSequenceNode(
+            enumerable.Cast<object?>().Select(ConvertToYamlNode)),
         _ => new YamlScalarNode(value.ToString()),
+    };
+
+    /// <summary>
+    /// Repairs string values that are actually JSON arrays (e.g. <c>["a","b"]</c>) produced when
+    /// <see cref="JsonElement"/> arrays were previously stringified into frontmatter.
+    /// </summary>
+    private static YamlNode ConvertStringToYamlNode(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length >= 2 && trimmed[0] == '[' && trimmed[^1] == ']')
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    return ConvertJsonElementToYamlNode(doc.RootElement);
+                }
+            }
+            catch (JsonException)
+            {
+                // Not JSON — keep as a plain scalar.
+            }
+        }
+
+        return new YamlScalarNode(value);
+    }
+
+    private static YamlNode ConvertJsonElementToYamlNode(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Null or JsonValueKind.Undefined =>
+            new YamlScalarNode(string.Empty) { Style = YamlDotNet.Core.ScalarStyle.Plain },
+        JsonValueKind.True => new YamlScalarNode("true"),
+        JsonValueKind.False => new YamlScalarNode("false"),
+        JsonValueKind.Number => new YamlScalarNode(element.GetRawText()),
+        JsonValueKind.String => ConvertStringToYamlNode(element.GetString() ?? string.Empty),
+        JsonValueKind.Array => new YamlSequenceNode(element.EnumerateArray().Select(ConvertJsonElementToYamlNode)),
+        JsonValueKind.Object => new YamlMappingNode(
+            element.EnumerateObject()
+                .Select(p => new KeyValuePair<YamlNode, YamlNode>(
+                    new YamlScalarNode(p.Name),
+                    ConvertJsonElementToYamlNode(p.Value)))),
+        _ => new YamlScalarNode(element.ToString()),
     };
 }

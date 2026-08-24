@@ -31,8 +31,17 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.Configure<GitHubAuthOptions>(
     builder.Configuration.GetSection(GitHubAuthOptions.SectionName));
 
+// Aspire ServiceDefaults attaches a standard resilience handler with a ~10s attempt
+// timeout. Site preview start (GitHub tarball + Hugo container) regularly exceeds that,
+// so drop the default handler for this client and use HttpClient.Timeout instead.
 builder.Services.AddHttpClient<HugoMattersApiClient>(client =>
-    client.BaseAddress = new("https+http://apiservice"));
+    {
+        client.BaseAddress = new("https+http://apiservice");
+        client.Timeout = TimeSpan.FromMinutes(5);
+    })
+#pragma warning disable EXTEXP0001 // RemoveAllResilienceHandlers is experimental
+    .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
 
 builder.Services.AddHttpClient(GitHubAuthGateway.GitHubAuthClientName, client =>
 {
