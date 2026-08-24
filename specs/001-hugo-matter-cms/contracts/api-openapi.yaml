@@ -1,0 +1,646 @@
+openapi: 3.0.3
+info:
+  title: Hugo Matters API
+  version: 0.1.0
+  description: |
+    Local ApiService contract for Hugo Matters CMS v1.
+    Web (Blazor Server) is the primary client via Aspire service discovery.
+servers:
+  - url: https://apiservice
+    description: Aspire service discovery name (scheme may resolve to http in local dev)
+tags:
+  - name: Connection
+  - name: Session
+  - name: Content
+  - name: Preview
+  - name: ThemePacks
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+
+  /api/connection:
+    get:
+      tags: [Connection]
+      summary: Get current connected site (v1 single site)
+      responses:
+        "200":
+          description: Connected site
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectedSite"
+        "404":
+          description: No site connected
+    post:
+      tags: [Connection]
+      summary: Bind a Hugo site repository using a GitHub App installation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectRequest"
+      responses:
+        "200":
+          description: Connected site
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectedSite"
+        "400":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [Connection]
+      summary: Disconnect local site binding (does not uninstall GitHub App)
+      responses:
+        "204":
+          description: Disconnected
+
+  /api/session:
+    get:
+      tags: [Session]
+      summary: Get active editing session for the connected site
+      responses:
+        "200":
+          description: Active session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditingSession"
+        "404":
+          description: No active session
+    post:
+      tags: [Session]
+      summary: Start editing session (branch + PR). Fails if one already active.
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditingSession"
+        "409":
+          description: Active session already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditingSession"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /api/session/save:
+    post:
+      tags: [Session]
+      summary: Persist buffered content changes as commit(s) on the session branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveRequest"
+      responses:
+        "200":
+          description: Save succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /api/session/publish:
+    post:
+      tags: [Session]
+      summary: Merge PR into default branch, delete session branch, end session
+      responses:
+        "200":
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishResult"
+        "400":
+          description: Blocked (no changes, unsaved edits) or failed merge with explanation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishResult"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /api/session/discard:
+    post:
+      tags: [Session]
+      summary: Close PR without merge, delete branch, end session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscardRequest"
+      responses:
+        "200":
+          description: Discarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscardResult"
+        "400":
+          description: Confirmation required for unsaved edits, or failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscardResult"
+
+  /api/content:
+    get:
+      tags: [Content]
+      summary: List posts/pages visible in the active session tree
+      parameters:
+        - name: contentType
+          in: query
+          schema:
+            type: string
+            enum: [post, page, all]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentItemSummary"
+        "404":
+          description: No active session
+    post:
+      tags: [Content]
+      summary: Create new post/page in session buffer using theme-pack defaults
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentCreateRequest"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+        "400":
+          $ref: "#/components/responses/Error"
+
+  /api/content/{path}:
+    get:
+      tags: [Content]
+      summary: Get a content item by repo-relative path
+      parameters:
+        - $ref: "#/components/parameters/ContentPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+    put:
+      tags: [Content]
+      summary: Upsert content in the local session buffer (not Git until save)
+      parameters:
+        - $ref: "#/components/parameters/ContentPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentItemWrite"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+        "400":
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [Content]
+      summary: Mark content deleted in session buffer (persisted on save)
+      parameters:
+        - $ref: "#/components/parameters/ContentPath"
+      responses:
+        "204":
+          description: Marked deleted
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/site-config:
+    get:
+      tags: [Content]
+      summary: Get minimal theme-pack site configuration fields
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteConfig"
+    put:
+      tags: [Content]
+      summary: Update minimal site configuration in session buffer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteConfig"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteConfig"
+
+  /api/preview/editor:
+    post:
+      tags: [Preview]
+      summary: Approximate in-editor HTML preview (shortcodes may not render)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditorPreviewRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorPreviewResponse"
+
+  /api/preview/site:
+    post:
+      tags: [Preview]
+      summary: Start real Hugo site preview from saved session branch tip
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SitePreview"
+        "400":
+          $ref: "#/components/responses/Error"
+        "409":
+          description: Preview already running or session missing
+    get:
+      tags: [Preview]
+      summary: Get current site preview status
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SitePreview"
+        "404":
+          description: No preview
+    delete:
+      tags: [Preview]
+      summary: Stop site preview and clean workspace
+      responses:
+        "204":
+          description: Stopped
+
+  /api/theme-packs:
+    get:
+      tags: [ThemePacks]
+      summary: List available theme packs
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ThemePackSummary"
+
+  /api/theme-packs/{id}:
+    get:
+      tags: [ThemePacks]
+      summary: Get theme pack field schema for editor binding
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThemePackDetail"
+        "404":
+          $ref: "#/components/responses/Error"
+
+components:
+  parameters:
+    ContentPath:
+      name: path
+      in: path
+      required: true
+      description: Repo-relative path (URL-encoded)
+      schema:
+        type: string
+
+  responses:
+    Error:
+      description: Safe failure payload (no secrets)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+
+  schemas:
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    ConnectRequest:
+      type: object
+      required: [installationId, owner, repo]
+      properties:
+        installationId:
+          type: integer
+          format: int64
+        owner:
+          type: string
+        repo:
+          type: string
+
+    ConnectedSite:
+      type: object
+      required: [id, ownerLogin, repoName, defaultBranch, themePackId, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerLogin:
+          type: string
+        repoName:
+          type: string
+        defaultBranch:
+          type: string
+        htmlUrl:
+          type: string
+        themePackId:
+          type: string
+        themePackVersion:
+          type: string
+        status:
+          type: string
+          enum: [Connected, AccessLost, Disconnected]
+
+    EditingSession:
+      type: object
+      required: [id, siteId, branchName, pullRequestNumber, baseBranch, state, hasUnsavedLocalEdits]
+      properties:
+        id:
+          type: string
+          format: uuid
+        siteId:
+          type: string
+          format: uuid
+        branchName:
+          type: string
+        pullRequestNumber:
+          type: integer
+        pullRequestUrl:
+          type: string
+        baseBranch:
+          type: string
+        state:
+          type: string
+          enum: [Active, Publishing, Discarding, Ended]
+        hasUnsavedLocalEdits:
+          type: boolean
+
+    SaveRequest:
+      type: object
+      properties:
+        commitMessage:
+          type: string
+          description: Optional; server may supply a default
+
+    SaveResult:
+      type: object
+      required: [commitSha, hasUnsavedLocalEdits]
+      properties:
+        commitSha:
+          type: string
+        hasUnsavedLocalEdits:
+          type: boolean
+
+    PublishResult:
+      type: object
+      required: [outcome, message]
+      properties:
+        outcome:
+          type: string
+          enum:
+            - Succeeded
+            - BlockedNoChanges
+            - BlockedUnsavedEdits
+            - FailedMerge
+            - FailedAuth
+        message:
+          type: string
+        mergeCommitSha:
+          type: string
+          nullable: true
+
+    DiscardRequest:
+      type: object
+      required: [confirmDiscardUnsaved]
+      properties:
+        confirmDiscardUnsaved:
+          type: boolean
+          description: Must be true when hasUnsavedLocalEdits
+
+    DiscardResult:
+      type: object
+      required: [outcome, message]
+      properties:
+        outcome:
+          type: string
+          enum: [Succeeded, ConfirmationRequired, Failed]
+        message:
+          type: string
+
+    ContentItemSummary:
+      type: object
+      required: [path, contentType, title]
+      properties:
+        path:
+          type: string
+        contentType:
+          type: string
+          enum: [post, page]
+        title:
+          type: string
+        isDeleted:
+          type: boolean
+        isNew:
+          type: boolean
+
+    ContentItem:
+      type: object
+      required: [path, contentType, frontMatter, body]
+      properties:
+        path:
+          type: string
+        contentType:
+          type: string
+          enum: [post, page]
+        frontMatter:
+          type: object
+          additionalProperties: true
+        body:
+          type: string
+        isDeleted:
+          type: boolean
+        isNew:
+          type: boolean
+        hasUnsavedLocalEdits:
+          type: boolean
+
+    ContentItemWrite:
+      type: object
+      required: [frontMatter, body]
+      properties:
+        frontMatter:
+          type: object
+          additionalProperties: true
+        body:
+          type: string
+
+    ContentCreateRequest:
+      type: object
+      required: [contentType, slug]
+      properties:
+        contentType:
+          type: string
+          enum: [post, page]
+        slug:
+          type: string
+        title:
+          type: string
+
+    SiteConfig:
+      type: object
+      additionalProperties: true
+      description: Allowlisted keys only per theme pack
+
+    EditorPreviewRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+        frontMatter:
+          type: object
+          additionalProperties: true
+
+    EditorPreviewResponse:
+      type: object
+      required: [html]
+      properties:
+        html:
+          type: string
+
+    SitePreview:
+      type: object
+      required: [status]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [Starting, Running, Failed, Stopped]
+        baseUrl:
+          type: string
+          nullable: true
+        sourceRef:
+          type: string
+          description: Commit SHA of saved session content used for preview
+        errorMessage:
+          type: string
+          nullable: true
+
+    ThemePackSummary:
+      type: object
+      required: [id, version, displayName]
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+        displayName:
+          type: string
+
+    ThemePackDetail:
+      allOf:
+        - $ref: "#/components/schemas/ThemePackSummary"
+        - type: object
+          properties:
+            contentTypes:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  fields:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FieldDefinition"
+            siteConfigFields:
+              type: array
+              items:
+                $ref: "#/components/schemas/FieldDefinition"
+
+    FieldDefinition:
+      type: object
+      required: [key, label, dataType]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        dataType:
+          type: string
+        required:
+          type: boolean
+        default:
+          description: Default value
+        editorWidget:
+          type: string

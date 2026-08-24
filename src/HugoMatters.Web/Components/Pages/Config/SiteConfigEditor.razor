@@ -1,0 +1,207 @@
+@page "/config"
+@inherits DeferredLoadPageBase
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
+@inject HugoMattersApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Site Configuration</PageTitle>
+
+<div class="max-w-2xl">
+    <h1 class="text-2xl font-bold text-slate-900">Site configuration</h1>
+    <p class="mt-1 text-sm text-slate-600">
+        Edit allowlisted Hugo and theme settings for the connected site.
+    </p>
+
+    <Banner
+        Variant="@bannerVariant"
+        Message="@bannerMessage"
+        IsVisible="@(bannerMessage is not null && !noSession)"
+        IsVisibleChanged="@((bool v) => { if (!v) bannerMessage = null; })" />
+
+    @if (loading)
+    {
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading configuration…</span>
+        </div>
+    }
+    else if (noSession)
+    {
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900">No active editing session</h2>
+            <p class="mt-2 text-sm text-slate-600">
+                Start or resume a session before editing site configuration.
+            </p>
+            <Button CssClass="mt-4" IconName="git-branch" OnClick="@(() => Navigation.NavigateTo("/session"))">
+                Go to session
+            </Button>
+        </div>
+    }
+    else
+    {
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            @if (themePack is not null)
+            {
+                <div class="mb-6 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4">
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-200">
+                        <Icon Name="book-open" Size="14" />
+                        @themePack.DisplayName
+                    </span>
+                    <span class="text-xs text-slate-500">Theme pack · v@(themePack.Version)</span>
+                </div>
+            }
+
+            @if (fields.Count == 0)
+            {
+                <p class="text-sm text-slate-600">No site configuration fields are available for your theme pack.</p>
+            }
+            else
+            {
+                @if (hugoFields.Count > 0)
+                {
+                    <section class="@(themeFields.Count > 0 ? "mb-8" : "")">
+                        <div class="mb-3 flex items-center gap-2">
+                            <h2 class="text-sm font-semibold text-slate-900">Hugo site</h2>
+                            <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-600">
+                                Hugo
+                            </span>
+                        </div>
+                        <p class="mb-4 text-xs text-slate-500">Core site settings from your Hugo config file.</p>
+                        <ThemeFieldEditor
+                            Fields="@hugoFields"
+                            FrontMatter="@config"
+                            FrontMatterChanged="OnConfigChanged" />
+                    </section>
+                }
+
+                @if (themeFields.Count > 0)
+                {
+                    <section>
+                        <div class="mb-3 flex items-center gap-2">
+                            <h2 class="text-sm font-semibold text-slate-900">Theme</h2>
+                            <span class="inline-flex rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-brand-700 ring-1 ring-inset ring-brand-200">
+                                @(themePack?.DisplayName ?? "Theme")
+                            </span>
+                        </div>
+                        <p class="mb-4 text-xs text-slate-500">Fields exposed by the active theme pack.</p>
+                        <ThemeFieldEditor
+                            Fields="@themeFields"
+                            FrontMatter="@config"
+                            FrontMatterChanged="OnConfigChanged" />
+                    </section>
+                }
+
+                <div class="mt-6">
+                    <Button IconName="save" OnClick="SaveConfig" Loading="@saving">
+                        Save configuration
+                    </Button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private Dictionary<string, object?> config = new();
+    private List<FieldDefinitionDto> fields = [];
+    private ThemePackDetailDto? themePack;
+    private bool loading = true;
+    private bool noSession;
+    private bool saving;
+    private string? bannerMessage;
+    private Banner.BannerVariant bannerVariant = Banner.BannerVariant.Info;
+
+    private List<FieldDefinitionDto> hugoFields =>
+        fields.Where(f => IsHugoScope(f)).ToList();
+
+    private List<FieldDefinitionDto> themeFields =>
+        fields.Where(f => !IsHugoScope(f)).ToList();
+
+    protected override Task LoadPageAsync() => LoadConfig();
+
+    private static bool IsHugoScope(FieldDefinitionDto field)
+    {
+        if (!string.IsNullOrWhiteSpace(field.Scope))
+        {
+            return field.Scope.Equals("hugo", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return !field.Key.StartsWith("params.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task LoadConfig()
+    {
+        loading = true;
+        bannerMessage = null;
+        noSession = false;
+        fields = [];
+        themePack = null;
+
+        try
+        {
+            var session = await Api.GetSessionAsync();
+            if (session is null)
+            {
+                noSession = true;
+                return;
+            }
+
+            config = await Api.GetSiteConfigAsync();
+
+            var site = await Api.GetConnectionAsync();
+            if (site is not null)
+            {
+                themePack = await Api.GetThemePackAsync(site.ThemePackId);
+                fields = themePack?.SiteConfigFields ?? [];
+            }
+        }
+        catch (ApiException ex) when (ex.StatusCode == 404
+            || ex.Message.Contains("No active editing session", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("session", StringComparison.OrdinalIgnoreCase))
+        {
+            noSession = true;
+            fields = [];
+            themePack = null;
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task OnConfigChanged(Dictionary<string, object?> updated)
+    {
+        config = updated;
+        await Task.CompletedTask;
+    }
+
+    private async Task SaveConfig()
+    {
+        saving = true;
+
+        try
+        {
+            config = await Api.UpdateSiteConfigAsync(config);
+            ShowBanner("Site configuration saved to session buffer.", Banner.BannerVariant.Success);
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private void ShowBanner(string message, Banner.BannerVariant variant)
+    {
+        bannerMessage = message;
+        bannerVariant = variant;
+    }
+}

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- RemoveAllResilienceHandlers is experimental; required so preview start can exceed Aspire's ~10s default. -->
+    <NoWarn>$(NoWarn);EXTEXP0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HugoMatters.Web.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HugoMatters.ServiceDefaults\HugoMatters.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <Target Name="NpmInstall" BeforeTargets="BuildTailwind" Condition="Exists('package.json') And !Exists('node_modules')">
+    <Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <Target Name="BuildTailwind" BeforeTargets="Build" Condition="Exists('package.json')">
+    <Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+</Project>

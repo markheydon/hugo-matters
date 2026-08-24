@@ -1,0 +1,45 @@
+@namespace HugoMatters.Web.Components.Shared
+
+<div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div class="flex items-start gap-4">
+        <div class="rounded-lg bg-brand-50 p-3 text-brand-600">
+            <Icon Name="@IconName" Size="28" CssClass="animate-spin" />
+        </div>
+        <div class="min-w-0 flex-1">
+            <h2 class="text-lg font-semibold text-slate-900">@Title</h2>
+            <p class="mt-1 text-sm text-slate-600">@Message</p>
+            <div
+                class="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-100"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="@Percent"
+                aria-label="@Title">
+                <div
+                    class="h-full rounded-full bg-brand-600 transition-[width] duration-500 ease-out"
+                    style="width: @(Percent)%"></div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Hint))
+            {
+                <p class="mt-2 text-xs text-slate-500">@Hint</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Message { get; set; } = "";
+
+    [Parameter]
+    public int Percent { get; set; }
+
+    [Parameter]
+    public string? Hint { get; set; }
+
+    [Parameter]
+    public string IconName { get; set; } = "loader";
+}

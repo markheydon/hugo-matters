@@ -1,0 +1,17 @@
+@namespace HugoMatters.Web.Components
+@using HugoMatters.Web.Authentication
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        var absoluteUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        if (absoluteUri.AbsolutePath.Equals("/welcome", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var returnUrl = GitHubAuthReturnUrl.GetRequestedReturnUrl(absoluteUri);
+        NavigationManager.NavigateTo($"/welcome?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+    }
+}

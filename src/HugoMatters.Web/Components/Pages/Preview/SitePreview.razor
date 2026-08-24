@@ -1,0 +1,456 @@
+@page "/preview"
+@inherits DeferredLoadPageBase
+@implements IAsyncDisposable
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
+@inject HugoMattersApiClient Api
+
+<PageTitle>Site Preview</PageTitle>
+
+<div class="max-w-3xl">
+    <h1 class="text-2xl font-bold text-slate-900">Site preview</h1>
+    <p class="mt-1 text-sm text-slate-600">
+        Start a real Hugo preview from saved session content. Unsaved buffer changes are not included.
+    </p>
+
+    <Banner
+        Variant="@bannerVariant"
+        Message="@bannerMessage"
+        IsVisible="@(bannerMessage is not null)"
+        IsVisibleChanged="@((bool v) => { if (!v) bannerMessage = null; })" />
+
+    @if (loading)
+    {
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading preview status…</span>
+        </div>
+    }
+    else if ((starting || stopping) && progress is not null)
+    {
+        <div class="mt-8">
+            <ActionProgressPanel
+                Title="@(starting ? "Starting site preview" : "Stopping site preview")"
+                Message="@progress.Message"
+                Percent="@progress.Percent"
+                Hint="@(starting
+                    ? "Downloads the saved branch, validates a Hugo build, then starts a local preview container."
+                    : "Stops the Hugo container and cleans up the preview workspace.")" />
+        </div>
+    }
+    else
+    {
+        <div class="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-slate-900">Preview status</h2>
+                <span class="@GetStatusClasses(DisplayStatus)">
+                    @DisplayStatus
+                </span>
+            </div>
+
+            @if (preview is not null)
+            {
+                <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+                    @if (preview.BaseUrl is not null && IsActivePreview)
+                    {
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Preview URL</dt>
+                            <dd class="mt-1 text-sm">
+                                <a href="@preview.BaseUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                                    @preview.BaseUrl
+                                    <Icon Name="external-link" Size="14" />
+                                </a>
+                            </dd>
+                        </div>
+                    }
+                    @if (preview.SourceRef is not null)
+                    {
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Source commit</dt>
+                            <dd class="mt-1 font-mono text-sm text-slate-900">@preview.SourceRef[..Math.Min(7, preview.SourceRef.Length)]</dd>
+                        </div>
+                    }
+                    @if (IsStatus("Failed") && preview.ErrorMessage is not null)
+                    {
+                        <div class="sm:col-span-2">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Error</dt>
+                            <dd class="mt-1 text-sm text-red-600">@preview.ErrorMessage</dd>
+                        </div>
+                    }
+                </dl>
+            }
+
+            <div class="mt-6 flex flex-wrap gap-3">
+                @if (IsActivePreview)
+                {
+                    <Button Variant="Button.ButtonVariant.Danger" IconName="square" OnClick="StopPreview" Loading="@stopping">
+                        Stop preview
+                    </Button>
+                    @if (preview?.BaseUrl is not null && IsStatus("Running"))
+                    {
+                        <a href="@preview.BaseUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                            <Icon Name="external-link" Size="16" />
+                            Open preview
+                        </a>
+                    }
+                }
+                else
+                {
+                    <Button IconName="play" OnClick="StartPreview" Disabled="@starting">
+                        Start preview
+                    </Button>
+                }
+                <Button Variant="Button.ButtonVariant.Secondary" IconName="loader" OnClick="RefreshStatus" Loading="@refreshing" Disabled="@(starting || stopping)">
+                    Refresh status
+                </Button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] StartProgressMessages =
+    [
+        "Resolving session branch…",
+        "Downloading site snapshot…",
+        "Preparing preview workspace…",
+        "Validating Hugo build…",
+        "Starting Hugo server…",
+        "Waiting for preview to become ready…",
+    ];
+
+    private static readonly string[] StopProgressMessages =
+    [
+        "Stopping Hugo container…",
+    ];
+
+    private SitePreviewDto? preview;
+    private bool loading = true;
+    private bool starting;
+    private bool stopping;
+    private bool refreshing;
+    private string? bannerMessage;
+    private Banner.BannerVariant bannerVariant = Banner.BannerVariant.Info;
+    private SteppedProgressRunner? progress;
+
+    private bool IsActivePreview =>
+        IsStatus("Running") || IsStatus("Starting");
+
+    private string DisplayStatus => NormalizeStatus(preview?.Status) switch
+    {
+        "Failed" => "Failed",
+        "Running" => "Running",
+        "Starting" => "Starting",
+        "Stopped" or null => "Stopped",
+        var status => status,
+    };
+
+    protected override Task LoadPageAsync() => RefreshStatus();
+
+    private async Task RefreshStatus()
+    {
+        refreshing = true;
+        // Always show a brief loading cue on manual refresh so the click is obviously doing work.
+        if (preview is not null)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        else
+        {
+            loading = true;
+        }
+
+        try
+        {
+            var latest = await Api.GetSitePreviewAsync();
+            preview = NormalizePreview(latest);
+
+            // Always rewrite the banner from the freshly checked state (clears stale "Conflict" etc.).
+            ApplyStatusBanner(fromRefresh: true);
+        }
+        catch (Exception ex)
+        {
+            // Don't leave the previous status looking "current" when the check itself failed.
+            ShowBanner(
+                ex is ApiException apiEx
+                    ? apiEx.Message
+                    : $"Could not refresh preview status. {ex.Message}",
+                Banner.BannerVariant.Error);
+        }
+        finally
+        {
+            loading = false;
+            refreshing = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task StartPreview()
+    {
+        starting = true;
+        bannerMessage = null;
+        progress = new SteppedProgressRunner(
+            StartProgressMessages,
+            () => InvokeAsync(StateHasChanged));
+
+        try
+        {
+            // One continuous progress bar for the whole start path (API call + background
+            // build/ready poll). A second runner was resetting the bar to ~0% mid-start.
+            preview = await progress.RunAsync(
+                async () =>
+                {
+                    var started = NormalizePreview(await Api.StartSitePreviewAsync());
+                    preview = started;
+                    await InvokeAsync(StateHasChanged);
+
+                    if (IsStatus("Starting"))
+                    {
+                        return await PollUntilPreviewSettledAsync();
+                    }
+
+                    return started ?? new SitePreviewDto
+                    {
+                        Status = "Failed",
+                        ErrorMessage = "Preview start returned no status.",
+                    };
+                },
+                "Preview ready.",
+                stepDelayMs: 1600,
+                completedHoldMs: 200);
+
+            ApplyStatusBanner(fromRefresh: false);
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+            try
+            {
+                preview = NormalizePreview(await Api.GetSitePreviewAsync());
+                if (IsStatus("Starting"))
+                {
+                    preview = await PollUntilPreviewSettledAsync();
+                }
+
+                if (IsStatus("Failed") || IsStatus("Running"))
+                {
+                    ApplyStatusBanner(fromRefresh: false);
+                }
+            }
+            catch (ApiException)
+            {
+                // Keep prior preview state if refresh fails.
+            }
+        }
+        finally
+        {
+            if (progress is not null)
+            {
+                await progress.DisposeAsync();
+                progress = null;
+            }
+
+            starting = false;
+        }
+    }
+
+    private async Task StopPreview()
+    {
+        stopping = true;
+        bannerMessage = null;
+        progress = new SteppedProgressRunner(
+            StopProgressMessages,
+            () => InvokeAsync(StateHasChanged));
+
+        try
+        {
+            await progress.RunAsync(
+                () => Api.StopSitePreviewAsync(),
+                "Preview stopped.",
+                stepDelayMs: 1100,
+                completedHoldMs: 200);
+
+            preview = null;
+            ShowBanner("Site preview stopped.", Banner.BannerVariant.Success);
+        }
+        catch (ApiException ex)
+        {
+            ShowBanner(ex.Message, Banner.BannerVariant.Error);
+            try
+            {
+                preview = NormalizePreview(await Api.GetSitePreviewAsync());
+            }
+            catch (ApiException)
+            {
+            }
+        }
+        finally
+        {
+            await progress.DisposeAsync();
+            progress = null;
+            stopping = false;
+        }
+    }
+
+    private async Task<SitePreviewDto> PollUntilPreviewSettledAsync()
+    {
+        // API returns Starting once the workspace is ready; Hugo build + readiness finish in the background.
+        // Keep in sync with StartingPreviewReconciler.ReadinessTimeoutSeconds (90) plus poll slack.
+        const int startupPollMaxAttempts = 100;
+        for (var attempt = 0; attempt < startupPollMaxAttempts; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            var current = NormalizePreview(await Api.GetSitePreviewAsync());
+            if (current is null)
+            {
+                preview = new SitePreviewDto
+                {
+                    Status = "Failed",
+                    ErrorMessage = "Preview disappeared while starting.",
+                };
+                return preview;
+            }
+
+            preview = current;
+            await InvokeAsync(StateHasChanged);
+            if (!IsStatus("Starting"))
+            {
+                return current;
+            }
+        }
+
+        try
+        {
+            await Api.StopSitePreviewAsync();
+        }
+        catch (ApiException)
+        {
+        }
+
+        preview = new SitePreviewDto
+        {
+            Status = "Failed",
+            ErrorMessage = "Timed out waiting for Hugo preview to become ready. You can try starting again.",
+        };
+        return preview;
+    }
+
+    private void ApplyStatusBanner(bool fromRefresh)
+    {
+        if (preview is null)
+        {
+            if (fromRefresh)
+            {
+                ShowBanner("No site preview is running.", Banner.BannerVariant.Info);
+            }
+            else
+            {
+                bannerMessage = null;
+            }
+
+            return;
+        }
+
+        if (IsStatus("Failed"))
+        {
+            ShowBanner(
+                preview.ErrorMessage ?? "Site preview failed.",
+                Banner.BannerVariant.Error);
+            return;
+        }
+
+        if (IsStatus("Running"))
+        {
+            ShowBanner(
+                fromRefresh ? "Checked just now: site preview is running." : "Site preview is running.",
+                Banner.BannerVariant.Success);
+            return;
+        }
+
+        if (IsStatus("Starting"))
+        {
+            ShowBanner(
+                fromRefresh
+                    ? "Checked just now: preview is still starting (build or server)…"
+                    : "Site preview is still starting…",
+                Banner.BannerVariant.Info);
+            return;
+        }
+
+        if (fromRefresh)
+        {
+            ShowBanner($"Checked just now: status is {DisplayStatus}.", Banner.BannerVariant.Info);
+        }
+    }
+
+    private bool IsStatus(string expected) =>
+        string.Equals(NormalizeStatus(preview?.Status), expected, StringComparison.OrdinalIgnoreCase);
+
+    private static string? NormalizeStatus(string? status) =>
+        string.IsNullOrWhiteSpace(status) ? null : status.Trim();
+
+    private static SitePreviewDto? NormalizePreview(SitePreviewDto? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        var status = NormalizeStatus(value.Status);
+        if (status is null)
+        {
+            return value;
+        }
+
+        // Canonicalize casing so UI comparisons stay consistent with the API enum names.
+        status = status.ToLowerInvariant() switch
+        {
+            "starting" => "Starting",
+            "running" => "Running",
+            "failed" => "Failed",
+            "stopped" => "Stopped",
+            _ => status,
+        };
+
+        if (string.Equals(value.Status, status, StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return new SitePreviewDto
+        {
+            Id = value.Id,
+            Status = status,
+            BaseUrl = value.BaseUrl,
+            SourceRef = value.SourceRef,
+            ErrorMessage = value.ErrorMessage,
+        };
+    }
+
+    private void ShowBanner(string message, Banner.BannerVariant variant)
+    {
+        bannerMessage = message;
+        bannerVariant = variant;
+    }
+
+    private static string GetStatusClasses(string status)
+    {
+        var baseClasses = "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium";
+        return baseClasses + " " + (status switch
+        {
+            "Running" => "bg-green-100 text-green-800",
+            "Starting" => "bg-blue-100 text-blue-800",
+            "Failed" => "bg-red-100 text-red-800",
+            _ => "bg-slate-100 text-slate-600",
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (progress is not null)
+        {
+            await progress.DisposeAsync();
+            progress = null;
+        }
+    }
+}

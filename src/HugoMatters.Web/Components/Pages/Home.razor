@@ -1,0 +1,188 @@
+﻿@page "/"
+@inherits DeferredLoadPageBase
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
+@inject HugoMattersApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Home</PageTitle>
+
+<h1 class="text-2xl font-bold text-slate-900">Hugo Matters</h1>
+<p class="mt-1 text-sm text-slate-600">Local-first CMS for your Hugo site on GitHub.</p>
+
+@if (loading)
+{
+    <div class="mt-8 flex items-center gap-2 text-slate-500">
+        <Icon Name="loader" CssClass="animate-spin" />
+        <span>Loading site status…</span>
+    </div>
+}
+else if (site is null)
+{
+    <div class="mt-8 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div class="flex items-start gap-4">
+            <div class="rounded-lg bg-brand-50 p-3 text-brand-600">
+                <Icon Name="github" Size="28" />
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold text-slate-900">No site connected</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                    Connect your Hugo repository to start editing posts and pages through a theme-aware editor.
+                </p>
+                <div class="mt-4">
+                    <Button IconName="link" OnClick="@(() => Navigation.NavigateTo("/connect"))">
+                        Connect repository
+                    </Button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="mt-8 space-y-6">
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">
+                        @site.OwnerLogin/@site.RepoName
+                    </h2>
+                    @if (site.HtmlUrl is not null)
+                    {
+                        <a href="@site.HtmlUrl" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700">
+                            View on GitHub
+                            <Icon Name="external-link" Size="14" />
+                        </a>
+                    }
+                </div>
+                <span class="@GetStatusBadgeClasses(site.Status)">
+                    @site.Status
+                </span>
+            </div>
+
+            <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+                <div>
+                    <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Default branch</dt>
+                    <dd class="mt-1 text-sm font-medium text-slate-900">@site.DefaultBranch</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Theme pack</dt>
+                    <dd class="mt-1 text-sm font-medium text-slate-900">
+                        @site.ThemePackId
+                        @if (site.ThemePackVersion is not null)
+                        {
+                            <span class="text-slate-500">@($" v{site.ThemePackVersion}")</span>
+                        }
+                    </dd>
+                </div>
+            </dl>
+
+            <div class="mt-6 flex flex-wrap gap-3">
+                @if (session is null)
+                {
+                    <Button IconName="git-branch" OnClick="@(() => Navigation.NavigateTo("/session"))">
+                        Start editing session
+                    </Button>
+                }
+                else
+                {
+                    <Button IconName="edit" OnClick="@(() => Navigation.NavigateTo("/session"))">
+                        Resume session
+                    </Button>
+                    <Button Variant="Button.ButtonVariant.Secondary" IconName="file-text" OnClick="@(() => Navigation.NavigateTo("/content"))">
+                        Edit content
+                    </Button>
+                }
+                <Button Variant="Button.ButtonVariant.Danger" IconName="x" OnClick="Disconnect" Loading="@disconnecting">
+                    Disconnect
+                </Button>
+            </div>
+        </div>
+
+        @if (session is not null)
+        {
+            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 class="text-sm font-semibold text-slate-900">Active session</h3>
+                <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <dt class="text-xs text-slate-500">Branch</dt>
+                        <dd class="text-sm font-medium">@session.BranchName</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-slate-500">Pull request</dt>
+                        <dd class="text-sm font-medium">
+                            @if (session.PullRequestUrl is not null)
+                            {
+                                <a href="@session.PullRequestUrl" target="_blank" rel="noopener" class="text-brand-600 hover:underline">
+                                    @($"#{session.PullRequestNumber}")
+                                </a>
+                            }
+                            else
+                            {
+                                @($"#{session.PullRequestNumber}")
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-slate-500">State</dt>
+                        <dd class="text-sm font-medium">@session.State</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-slate-500">Unsaved edits</dt>
+                        <dd class="text-sm font-medium">@(session.HasUnsavedLocalEdits ? "Yes" : "No")</dd>
+                    </div>
+                </dl>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private ConnectedSiteDto? site;
+    private EditingSessionDto? session;
+    private bool loading = true;
+    private bool disconnecting;
+
+    protected override Task LoadPageAsync() => LoadData();
+
+    private async Task LoadData()
+    {
+        loading = true;
+        try
+        {
+            site = await Api.GetConnectionAsync();
+            session = site is not null ? await Api.GetSessionAsync() : null;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task Disconnect()
+    {
+        disconnecting = true;
+        try
+        {
+            await Api.DisconnectAsync();
+            site = null;
+            session = null;
+        }
+        finally
+        {
+            disconnecting = false;
+        }
+    }
+
+    private static string GetStatusBadgeClasses(string status)
+    {
+        var baseClasses = "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium";
+        return baseClasses + " " + (status switch
+        {
+            "Connected" => "bg-green-100 text-green-800",
+            "AccessLost" => "bg-red-100 text-red-800",
+            "Disconnected" => "bg-slate-100 text-slate-600",
+            _ => "bg-slate-100 text-slate-600",
+        });
+    }
+}

@@ -1,0 +1,409 @@
+@page "/session"
+@inherits DeferredLoadPageBase
+@implements IAsyncDisposable
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode AppRenderMode.Interactive
+@inject HugoMattersApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Editing Session</PageTitle>
+
+<div class="max-w-3xl">
+    <h1 class="text-2xl font-bold text-slate-900">Editing session</h1>
+    <p class="mt-1 text-sm text-slate-600">
+        Start or resume a single editing session mapped to a branch and pull request.
+    </p>
+
+    <Banner
+        Variant="Banner.BannerVariant.Error"
+        Title="Session error"
+        Message="@errorMessage"
+        IsVisible="@(errorMessage is not null)"
+        IsVisibleChanged="@((bool v) => { if (!v) errorMessage = null; })" />
+
+    @if (readinessMessage is not null && session is null && !loading && !starting && !resuming)
+    {
+        <Banner
+            Variant="Banner.BannerVariant.Error"
+            Title="Cannot start a session yet"
+            Message="@readinessMessage"
+            IsVisible="true" />
+    }
+
+    @if (loading)
+    {
+        <div class="mt-8 flex items-center gap-2 text-slate-500">
+            <Icon Name="loader" CssClass="animate-spin" />
+            <span>Loading session…</span>
+        </div>
+    }
+    else if ((starting || resuming) && progress is not null)
+    {
+        <div class="mt-8">
+            <ActionProgressPanel
+                Title="@(resuming ? "Resuming editing session" : "Starting editing session")"
+                Message="@progress.Message"
+                Percent="@progress.Percent"
+                Hint="@(resuming
+                    ? "Binding the existing pull request to this app."
+                    : "This usually takes a few seconds while GitHub creates the branch and pull request.")" />
+        </div>
+    }
+    else if (session is null)
+    {
+        <div class="mt-8 space-y-6">
+            @if (resumable.Count > 0)
+            {
+                <div class="rounded-xl border border-brand-200 bg-brand-50/40 p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-slate-900">Resume an open session</h2>
+                    <p class="mt-1 text-sm text-slate-600">
+                        Open Hugo Matters pull requests were found on this repository. Resume one instead of starting another.
+                    </p>
+                    <ul class="mt-4 space-y-3">
+                        @foreach (var item in resumable)
+                        {
+                            <li class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-slate-900">
+                                        #@item.PullRequestNumber
+                                        @if (!string.IsNullOrWhiteSpace(item.Title))
+                                        {
+                                            <span class="font-normal text-slate-600">· @item.Title</span>
+                                        }
+                                    </p>
+                                    <p class="mt-0.5 font-mono text-xs text-slate-500">@item.BranchName → @item.BaseBranch</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    @if (!string.IsNullOrWhiteSpace(item.PullRequestUrl))
+                                    {
+                                        <a href="@item.PullRequestUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                                            View PR
+                                            <Icon Name="external-link" Size="14" />
+                                        </a>
+                                    }
+                                    <Button IconName="play" OnClick="@(() => ResumeSession(item.PullRequestNumber))" Disabled="@(readinessMessage is not null)">
+                                        Resume
+                                    </Button>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+                <div class="flex items-start gap-4">
+                    <div class="rounded-lg bg-brand-50 p-3 text-brand-600">
+                        <Icon Name="git-branch" Size="28" />
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">
+                            @(resumable.Count > 0 ? "Or start a new session" : "No active session")
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-600">
+                            @(resumable.Count > 0
+                                ? "Starting a new session creates another branch and pull request. Prefer resuming an open one above unless you need a separate line of work."
+                                : "Starting a session creates a branch and open pull request against your default branch. Only one session can be active at a time.")
+                        </p>
+                        <Button
+                            CssClass="mt-4"
+                            IconName="plus"
+                            OnClick="StartSession"
+                            Disabled="@(readinessMessage is not null)">
+                            Start editing session
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="mt-8 space-y-6">
+            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-slate-900">Active session</h2>
+                    <span class="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                        @session.State
+                    </span>
+                </div>
+
+                <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Branch</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">@session.BranchName</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Base branch</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">@session.BaseBranch</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Pull request</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">
+                            @if (session.PullRequestUrl is not null)
+                            {
+                                <a href="@session.PullRequestUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                                    @($"#{session.PullRequestNumber}")
+                                    <Icon Name="external-link" Size="14" />
+                                </a>
+                            }
+                            else
+                            {
+                                @($"#{session.PullRequestNumber}")
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Unsaved edits</dt>
+                        <dd class="mt-1 text-sm font-medium text-slate-900">
+                            @(session.HasUnsavedLocalEdits ? "Yes — save before publishing" : "No")
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="mt-6 flex flex-wrap gap-3">
+                    <Button IconName="file-text" OnClick="@(() => Navigation.NavigateTo("/content"))">
+                        Edit content
+                    </Button>
+                    <Button Variant="Button.ButtonVariant.Secondary" IconName="eye" OnClick="@(() => Navigation.NavigateTo("/preview"))">
+                        Site preview
+                    </Button>
+                    <Button Variant="Button.ButtonVariant.Secondary" IconName="settings" OnClick="@(() => Navigation.NavigateTo("/config"))">
+                        Site config
+                    </Button>
+                    <Button Variant="Button.ButtonVariant.Secondary" IconName="arrow-left" OnClick="LeaveSessionQuick" Loading="@leaving">
+                        Leave session
+                    </Button>
+                </div>
+            </div>
+
+            <SessionActions Session="@session" OnSessionChanged="HandleSessionChanged" />
+        </div>
+    }
+</div>
+
+<LeaveConfirmDialog
+    IsOpen="@showLeaveDialog"
+    IsOpenChanged="@((bool v) => showLeaveDialog = v)"
+    Loading="@leaving"
+    OnConfirm="ConfirmLeaveSession" />
+
+@code {
+    private static readonly string[] StartProgressMessages =
+    [
+        "Checking repository access…",
+        "Creating session branch…",
+        "Writing session marker commit…",
+        "Opening pull request…",
+        "Almost done…",
+    ];
+
+    private static readonly string[] ResumeProgressMessages =
+    [
+        "Checking pull request…",
+        "Verifying session branch…",
+        "Restoring local session…",
+        "Almost done…",
+    ];
+
+    private EditingSessionDto? session;
+    private List<ResumableSessionDto> resumable = [];
+    private bool loading = true;
+    private bool starting;
+    private bool resuming;
+    private bool leaving;
+    private bool showLeaveDialog;
+    private string? errorMessage;
+    private string? readinessMessage;
+    private SteppedProgressRunner? progress;
+
+    protected override Task LoadPageAsync() => LoadSession();
+
+    private async Task LoadSession()
+    {
+        loading = true;
+        readinessMessage = null;
+        resumable = [];
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            session = await Api.GetSessionAsync();
+            if (session is not null)
+            {
+                return;
+            }
+
+            try
+            {
+                var readiness = await Api.GetConnectionReadinessAsync();
+                readinessMessage = readiness.Ready ? null : readiness.Message;
+            }
+            catch (ApiException ex)
+            {
+                readinessMessage = ex.Message;
+            }
+
+            try
+            {
+                resumable = await Api.ListResumableSessionsAsync();
+            }
+            catch (ApiException)
+            {
+                resumable = [];
+            }
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+            session = null;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task StartSession()
+    {
+        if (readinessMessage is not null)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        progress = new SteppedProgressRunner(
+            StartProgressMessages,
+            () => InvokeAsync(StateHasChanged));
+        starting = true;
+
+        try
+        {
+            session = await progress.RunAsync(
+                () => Api.StartSessionAsync(),
+                "Session ready.");
+            readinessMessage = null;
+            resumable = [];
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            await progress.DisposeAsync();
+            progress = null;
+            starting = false;
+        }
+    }
+
+    private async Task ResumeSession(int pullRequestNumber)
+    {
+        if (readinessMessage is not null)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        progress = new SteppedProgressRunner(
+            ResumeProgressMessages,
+            () => InvokeAsync(StateHasChanged));
+        resuming = true;
+
+        try
+        {
+            session = await progress.RunAsync(
+                () => Api.ResumeSessionAsync(pullRequestNumber),
+                "Session resumed.");
+            readinessMessage = null;
+            resumable = [];
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            await progress.DisposeAsync();
+            progress = null;
+            resuming = false;
+        }
+    }
+
+    private async Task LeaveSessionQuick()
+    {
+        if (session is null)
+        {
+            return;
+        }
+
+        if (session.HasUnsavedLocalEdits)
+        {
+            showLeaveDialog = true;
+            return;
+        }
+
+        await ConfirmLeaveSession();
+    }
+
+    private async Task ConfirmLeaveSession()
+    {
+        if (session is null)
+        {
+            return;
+        }
+
+        leaving = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await Api.LeaveSessionAsync(new LeaveSessionRequestDto
+            {
+                ConfirmLeaveUnsaved = session.HasUnsavedLocalEdits || showLeaveDialog,
+            });
+
+            showLeaveDialog = false;
+
+            if (string.Equals(result.Outcome, "Succeeded", StringComparison.OrdinalIgnoreCase))
+            {
+                session = null;
+                leaving = false;
+                await LoadSession();
+                return;
+            }
+
+            if (string.Equals(result.Outcome, "ConfirmationRequired", StringComparison.OrdinalIgnoreCase))
+            {
+                showLeaveDialog = true;
+                errorMessage = result.Message;
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Could not leave the session.";
+            }
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            leaving = false;
+        }
+    }
+
+    private async Task HandleSessionChanged()
+    {
+        await LoadSession();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (progress is not null)
+        {
+            await progress.DisposeAsync();
+            progress = null;
+        }
+    }
+}

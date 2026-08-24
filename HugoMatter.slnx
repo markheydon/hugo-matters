@@ -1,6 +1,0 @@
-<Solution>
-  <Project Path="src/HugoMatter.ApiService/HugoMatter.ApiService.csproj" />
-  <Project Path="src/HugoMatter.AppHost/HugoMatter.AppHost.csproj" />
-  <Project Path="src/HugoMatter.ServiceDefaults/HugoMatter.ServiceDefaults.csproj" />
-  <Project Path="src/HugoMatter.Web/HugoMatter.Web.csproj" />
-</Solution>

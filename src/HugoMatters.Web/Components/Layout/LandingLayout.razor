@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+
+<div class="min-h-screen bg-slate-50">
+    <header class="flex h-14 items-center border-b border-slate-200 bg-white px-6">
+        <div class="flex items-center gap-2">
+            <Icon Name="book-open" Size="24" CssClass="text-brand-600" />
+            <span class="text-lg font-semibold text-slate-900">Hugo Matters</span>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-lg px-6 py-8">
+        @Body
+    </main>
+</div>

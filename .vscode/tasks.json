@@ -1,0 +1,190 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "aspire start",
+      "command": "aspire",
+      "type": "process",
+      "args": [
+        "start",
+        "--apphost",
+        "${workspaceFolder}/src/HugoMatters.AppHost/HugoMatters.AppHost.csproj"
+      ],
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "aspire start (isolated)",
+      "command": "aspire",
+      "type": "process",
+      "args": [
+        "start",
+        "--isolated",
+        "--apphost",
+        "${workspaceFolder}/src/HugoMatters.AppHost/HugoMatters.AppHost.csproj"
+      ],
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "aspire describe",
+      "command": "aspire",
+      "type": "process",
+      "args": [
+        "describe"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "close": true
+      }
+    },
+    {
+      "label": "aspire stop",
+      "command": "aspire",
+      "type": "process",
+      "args": [
+        "stop"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "close": true
+      }
+    },
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/HugoMatters.slnx",
+        "--configuration",
+        "Debug"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      }
+    },
+    {
+      "label": "test",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "test",
+        "${workspaceFolder}/HugoMatters.slnx"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      }
+    },
+    {
+      "label": "watch",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "watch",
+        "--project",
+        "${workspaceFolder}/src/HugoMatters.Web/HugoMatters.Web.csproj",
+        "run"
+      ],
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": ".",
+              "file": 1,
+              "location": 2,
+              "message": 3
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "^.*Build started.*",
+            "endsPattern": "^.*Now listening on:\\s+(https?://\\S+)"
+          }
+        }
+      ],
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "watch (wsl)",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "watch",
+        "--project",
+        "${workspaceFolder}/src/HugoMatters.Web/HugoMatters.Web.csproj",
+        "run"
+      ],
+      "options": {
+        "env": {
+          "DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER": "1"
+        }
+      },
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": ".",
+              "file": 1,
+              "location": 2,
+              "message": 3
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "^.*Build started.*",
+            "endsPattern": "^.*Now listening on:\\s+(https?://\\S+)"
+          }
+        }
+      ],
+      "isBackground": true,
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "clean",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "clean",
+        "${workspaceFolder}/HugoMatters.slnx"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      }
+    }
+  ]
+}
