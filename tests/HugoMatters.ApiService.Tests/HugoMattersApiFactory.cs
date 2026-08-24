@@ -29,6 +29,9 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
     /// <summary>Substituted GitHub repository port.</summary>
     public IGitHubRepository GitHub { get; } = Substitute.For<IGitHubRepository>();
 
+    /// <summary>Substituted site preview orchestrator.</summary>
+    public ISitePreviewOrchestrator PreviewOrchestrator { get; } = Substitute.For<ISitePreviewOrchestrator>();
+
     /// <summary>JSON options matching API serialization.</summary>
     public static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web)
     {
@@ -63,7 +66,9 @@ public sealed class HugoMattersApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IGitHubRepository>();
             services.RemoveAll<IMetadataStore>();
+            services.RemoveAll<ISitePreviewOrchestrator>();
             services.AddSingleton(GitHub);
+            services.AddSingleton(PreviewOrchestrator);
             services.AddSingleton<IMetadataStore, InMemoryMetadataStore>();
         });
     }

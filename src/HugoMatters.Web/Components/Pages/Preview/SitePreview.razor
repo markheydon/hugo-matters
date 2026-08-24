@@ -295,8 +295,9 @@
     private async Task<SitePreviewDto> PollUntilPreviewSettledAsync()
     {
         // API returns Starting once the workspace is ready; Hugo build + readiness finish in the background.
-        // Allow enough time for module download + build on larger sites.
-        for (var attempt = 0; attempt < 180; attempt++)
+        // Keep in sync with StartingPreviewReconciler.ReadinessTimeoutSeconds (90) plus poll slack.
+        const int startupPollMaxAttempts = 100;
+        for (var attempt = 0; attempt < startupPollMaxAttempts; attempt++)
         {
             await Task.Delay(TimeSpan.FromSeconds(1));
             var current = NormalizePreview(await Api.GetSitePreviewAsync());

@@ -23,4 +23,8 @@
     <ProjectReference Include="..\HugoMatters.ThemePacks\HugoMatters.ThemePacks.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="HugoMatters.Infrastructure.Tests" />
+  </ItemGroup>
+
 </Project>

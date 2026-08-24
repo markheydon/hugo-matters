@@ -27,8 +27,12 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DockerSitePreviewOrchestrator> _logger;
+    private readonly PreviewSessionGuard _sessionGuard = new();
     private readonly SemaphoreSlim _runtimeLock = new(1, 1);
     private string? _containerRuntime;
+
+    private const int RunningHealthProbeAttempts = 3;
+    private const int RunningHealthProbeDelayMs = 500;
 
     /// <summary>
     /// Creates a new <see cref="DockerSitePreviewOrchestrator"/>.
@@ -63,6 +67,8 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
         ArgumentException.ThrowIfNullOrWhiteSpace(branchTipSha);
 
         await StopPreviewAsync(session.Id, cancellationToken).ConfigureAwait(false);
+
+        var (generation, startupCancellation) = _sessionGuard.BeginOperation(session.Id);
 
         var previewId = $"preview-{session.Id:N}";
         var workspacePath = Path.Combine(
@@ -101,7 +107,9 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
             await _metadataStore.SaveSitePreviewAsync(preview, cancellationToken).ConfigureAwait(false);
 
             var sessionId = session.Id;
-            _ = Task.Run(() => CompletePreviewStartupAsync(sessionId, workspacePath));
+            _ = Task.Run(
+                () => CompletePreviewStartupAsync(sessionId, workspacePath, generation, startupCancellation),
+                CancellationToken.None);
 
             return preview;
         }
@@ -124,28 +132,32 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
         }
     }
 
-    private async Task CompletePreviewStartupAsync(Guid sessionId, string workspacePath)
+    private async Task CompletePreviewStartupAsync(
+        Guid sessionId,
+        string workspacePath,
+        long generation,
+        CancellationToken cancellationToken)
     {
         string? runtime = null;
         string? containerName = null;
         try
         {
-            runtime = await ResolveContainerRuntimeAsync(CancellationToken.None).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!_sessionGuard.IsCurrent(sessionId, generation))
+            {
+                return;
+            }
+
+            runtime = await ResolveContainerRuntimeAsync(cancellationToken).ConfigureAwait(false);
             containerName = $"hugo-matter-preview-{sessionId:N}";
 
             // Fail fast with Hugo's own diagnostics before starting the long-lived server.
-            await RunHugoBuildAsync(runtime, containerName, workspacePath, CancellationToken.None)
+            await RunHugoBuildAsync(runtime, containerName, workspacePath, cancellationToken)
                 .ConfigureAwait(false);
 
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            if (!await IsStartupStillActiveAsync(sessionId, generation, cancellationToken).ConfigureAwait(false))
             {
-                var metadataStore = scope.ServiceProvider.GetRequiredService<IMetadataStore>();
-                var preview = await metadataStore.GetSitePreviewAsync(sessionId, CancellationToken.None)
-                    .ConfigureAwait(false);
-                if (preview is null || preview.Status is not SitePreviewState.Starting)
-                {
-                    return;
-                }
+                return;
             }
 
             var hostPort = AllocateHostPort();
@@ -154,46 +166,42 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
                 containerName,
                 workspacePath,
                 hostPort,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken).ConfigureAwait(false);
 
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            if (!await MutatePreviewIfActiveStartingAsync(
+                    sessionId,
+                    generation,
+                    cancellationToken,
+                    preview =>
+                    {
+                        // Readiness probes use loopback (API and Hugo share the Linux/WSL host).
+                        // The URL shown to the browser must be reachable from outside that host —
+                        // on WSL2, Windows localhost often cannot reach rootless Podman publishes.
+                        preview.BaseUrl = $"http://{ResolveBrowserPreviewHost()}:{hostPort}";
+                    }).ConfigureAwait(false))
             {
-                var metadataStore = scope.ServiceProvider.GetRequiredService<IMetadataStore>();
-                var preview = await metadataStore.GetSitePreviewAsync(sessionId, CancellationToken.None)
+                await TryRemoveContainerAsync(runtime, containerName, CancellationToken.None)
                     .ConfigureAwait(false);
-                if (preview is null || preview.Status is not SitePreviewState.Starting)
-                {
-                    await TryRemoveContainerAsync(runtime, containerName, CancellationToken.None)
-                        .ConfigureAwait(false);
-                    return;
-                }
-
-                // Readiness probes use loopback (API and Hugo share the Linux/WSL host).
-                // The URL shown to the browser must be reachable from outside that host —
-                // on WSL2, Windows localhost often cannot reach rootless Podman publishes.
-                preview.BaseUrl = $"http://{ResolveBrowserPreviewHost()}:{hostPort}";
-                await metadataStore.SaveSitePreviewAsync(preview, CancellationToken.None)
-                    .ConfigureAwait(false);
+                return;
             }
 
-            using var readyCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            using var readyCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            readyCts.CancelAfter(TimeSpan.FromMinutes(2));
             await WaitForPreviewReadyAsync(hostPort, readyCts.Token).ConfigureAwait(false);
 
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var metadataStore = scope.ServiceProvider.GetRequiredService<IMetadataStore>();
-                var preview = await metadataStore.GetSitePreviewAsync(sessionId, CancellationToken.None)
-                    .ConfigureAwait(false);
-                if (preview is null || preview.Status is not SitePreviewState.Starting)
+            await MutatePreviewIfActiveStartingAsync(
+                sessionId,
+                generation,
+                cancellationToken,
+                preview =>
                 {
-                    return;
-                }
-
-                preview.Status = SitePreviewState.Running;
-                preview.ErrorMessage = null;
-                await metadataStore.SaveSitePreviewAsync(preview, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
+                    preview.Status = SitePreviewState.Running;
+                    preview.ErrorMessage = null;
+                }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Stop/restart superseded this startup; cleanup runs in StopPreviewAsync.
         }
         catch (Exception ex)
         {
@@ -201,6 +209,11 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
                 ex,
                 "Hugo site preview for session {SessionId} did not become ready.",
                 sessionId);
+
+            if (!_sessionGuard.IsCurrent(sessionId, generation))
+            {
+                return;
+            }
 
             string? hugoLogs = null;
             if (runtime is not null && containerName is not null)
@@ -214,24 +227,20 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
 
             try
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var metadataStore = scope.ServiceProvider.GetRequiredService<IMetadataStore>();
-                var preview = await metadataStore.GetSitePreviewAsync(sessionId, CancellationToken.None)
-                    .ConfigureAwait(false);
-                if (preview is null || preview.Status is not SitePreviewState.Starting)
-                {
-                    return;
-                }
+                await MutatePreviewIfActiveStartingAsync(
+                    sessionId,
+                    generation,
+                    CancellationToken.None,
+                    preview =>
+                    {
+                        preview.Status = SitePreviewState.Failed;
+                        preview.ErrorMessage = BuildHugoFailureMessage(ex, hugoLogs);
+                        preview.BaseUrl = null;
+                    }).ConfigureAwait(false);
 
-                preview.Status = SitePreviewState.Failed;
-                preview.ErrorMessage = BuildHugoFailureMessage(ex, hugoLogs);
-                preview.BaseUrl = null;
-                await metadataStore.SaveSitePreviewAsync(preview, CancellationToken.None)
-                    .ConfigureAwait(false);
-
-                if (!string.IsNullOrWhiteSpace(preview.WorkspacePath))
+                if (!string.IsNullOrWhiteSpace(workspacePath))
                 {
-                    await CleanupWorkspaceAsync(preview.WorkspacePath).ConfigureAwait(false);
+                    await CleanupWorkspaceAsync(workspacePath).ConfigureAwait(false);
                 }
             }
             catch (Exception saveEx)
@@ -250,6 +259,53 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
                 }
             }
         }
+    }
+
+    private async Task<bool> IsStartupStillActiveAsync(
+        Guid sessionId,
+        long generation,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!_sessionGuard.IsCurrent(sessionId, generation))
+        {
+            return false;
+        }
+
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var metadataStore = scope.ServiceProvider.GetRequiredService<IMetadataStore>();
+        var preview = await metadataStore.GetSitePreviewAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        return preview is not null && preview.Status is SitePreviewState.Starting;
+    }
+
+    private async Task<bool> MutatePreviewIfActiveStartingAsync(
+        Guid sessionId,
+        long generation,
+        CancellationToken cancellationToken,
+        Action<SitePreviewInfo> mutate)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!_sessionGuard.IsCurrent(sessionId, generation))
+        {
+            return false;
+        }
+
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var metadataStore = scope.ServiceProvider.GetRequiredService<IMetadataStore>();
+        var preview = await metadataStore.GetSitePreviewAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        if (preview is null || preview.Status is not SitePreviewState.Starting)
+        {
+            return false;
+        }
+
+        if (!_sessionGuard.IsCurrent(sessionId, generation))
+        {
+            return false;
+        }
+
+        mutate(preview);
+        await metadataStore.SaveSitePreviewAsync(preview, cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     private static string BuildHugoFailureMessage(Exception ex, string? hugoLogs)
@@ -336,7 +392,7 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
             {
                 // Also verify Hugo still answers; a dead process in a zombie container is not Running.
                 if (TryGetHostPort(preview.BaseUrl, out var hostPort)
-                    && !await IsPreviewReadyAsync(hostPort, cancellationToken).ConfigureAwait(false))
+                    && !await IsPreviewReadyWithRetriesAsync(hostPort, cancellationToken).ConfigureAwait(false))
                 {
                     preview.Status = SitePreviewState.Failed;
                     preview.ErrorMessage = "Preview container is running but Hugo is not responding.";
@@ -375,72 +431,31 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
         Guid sessionId,
         CancellationToken cancellationToken)
     {
-        // BaseUrl is assigned only after the preflight Hugo build succeeds and the server
-        // container is launched. Until then, leave status as Starting.
-        if (string.IsNullOrWhiteSpace(preview.BaseUrl) || !TryGetHostPort(preview.BaseUrl, out var hostPort))
+        if (string.IsNullOrWhiteSpace(preview.BaseUrl) || !TryGetHostPort(preview.BaseUrl, out _))
         {
             return preview;
         }
 
         var runtime = await ResolveContainerRuntimeAsync(cancellationToken).ConfigureAwait(false);
         var containerName = $"hugo-matter-preview-{sessionId:N}";
-        var running = await IsContainerRunningAsync(runtime, containerName, cancellationToken).ConfigureAwait(false);
-        if (!running)
-        {
-            var hugoLogs = await TryGetContainerLogsAsync(runtime, containerName, cancellationToken)
-                .ConfigureAwait(false);
-            await TryRemoveContainerAsync(runtime, containerName, cancellationToken).ConfigureAwait(false);
 
-            preview.Status = SitePreviewState.Failed;
-            preview.ErrorMessage = BuildHugoFailureMessage(
-                new InvalidOperationException("The Hugo container exited before it became ready."),
-                hugoLogs);
-            preview.BaseUrl = null;
-            await _metadataStore.SaveSitePreviewAsync(preview, cancellationToken).ConfigureAwait(false);
-            if (!string.IsNullOrWhiteSpace(preview.WorkspacePath))
+        return await StartingPreviewReconciler.ReconcileAsync(
+            preview,
+            new StartingPreviewReconcileDependencies
             {
-                await CleanupWorkspaceAsync(preview.WorkspacePath).ConfigureAwait(false);
-            }
-
-            return preview;
-        }
-
-        if (await IsPreviewReadyAsync(hostPort, cancellationToken).ConfigureAwait(false))
-        {
-            preview.Status = SitePreviewState.Running;
-            preview.ErrorMessage = null;
-            await _metadataStore.SaveSitePreviewAsync(preview, cancellationToken).ConfigureAwait(false);
-            return preview;
-        }
-
-        // Container is up but Hugo still isn't answering. If it's been long enough, treat as Failed
-        // so Refresh/status checks don't leave the UI stuck on Starting forever.
-        var startedAt = await GetContainerStartedAtAsync(runtime, containerName, cancellationToken)
-            .ConfigureAwait(false);
-        if (startedAt is { } started
-            && DateTimeOffset.UtcNow - started > TimeSpan.FromSeconds(90))
-        {
-            preview.Status = SitePreviewState.Failed;
-            preview.ErrorMessage =
-                "Hugo did not become ready within 90 seconds. You can try starting the preview again.";
-            preview.BaseUrl = null;
-            await _metadataStore.SaveSitePreviewAsync(preview, cancellationToken).ConfigureAwait(false);
-            try
-            {
-                await StopContainerAsync(runtime, containerName, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogWarning(ex, "Failed to stop timed-out preview container {Container}.", containerName);
-            }
-
-            if (!string.IsNullOrWhiteSpace(preview.WorkspacePath))
-            {
-                await CleanupWorkspaceAsync(preview.WorkspacePath).ConfigureAwait(false);
-            }
-        }
-
-        return preview;
+                ContainerName = containerName,
+                IsContainerRunning = ct => IsContainerRunningAsync(runtime, containerName, ct),
+                GetContainerLogs = ct => TryGetContainerLogsAsync(runtime, containerName, ct),
+                RemoveContainer = ct => TryRemoveContainerAsync(runtime, containerName, ct),
+                IsPreviewReady = (port, ct) => IsPreviewReadyAsync(port, ct),
+                GetContainerStartedAt = ct => GetContainerStartedAtAsync(runtime, containerName, ct),
+                StopContainer = ct => StopContainerAsync(runtime, containerName, ct),
+                SavePreview = (updated, ct) => _metadataStore.SaveSitePreviewAsync(updated, ct),
+                CleanupWorkspace = (path, _) => CleanupWorkspaceAsync(path),
+                BuildFailureMessage = BuildHugoFailureMessage,
+                Logger = _logger,
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<DateTimeOffset?> GetContainerStartedAtAsync(
@@ -482,6 +497,24 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
         return true;
     }
 
+    private static async Task<bool> IsPreviewReadyWithRetriesAsync(int hostPort, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < RunningHealthProbeAttempts; attempt++)
+        {
+            if (await IsPreviewReadyAsync(hostPort, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            if (attempt < RunningHealthProbeAttempts - 1)
+            {
+                await Task.Delay(RunningHealthProbeDelayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return false;
+    }
+
     private static async Task<bool> IsPreviewReadyAsync(int hostPort, CancellationToken cancellationToken)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
@@ -505,6 +538,8 @@ public sealed class DockerSitePreviewOrchestrator : ISitePreviewOrchestrator
     /// <inheritdoc />
     public async Task StopPreviewAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
+        _sessionGuard.Invalidate(sessionId);
+
         var preview = await _metadataStore.GetSitePreviewAsync(sessionId, cancellationToken).ConfigureAwait(false);
         if (preview is null)
         {
