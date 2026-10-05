@@ -38,6 +38,8 @@ updates:
       azure:
         patterns:
           - Azure.*
+          - Microsoft.Azure.*
+          - Aspire.*
         update-types:
           - minor
           - patch
@@ -78,6 +80,7 @@ updates:
         patterns:
           - "*"
         update-types:
+          - major
           - minor
           - patch
 
