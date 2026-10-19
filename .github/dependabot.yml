@@ -1,5 +1,21 @@
 version: 2
 updates:
+  - package-ecosystem: dotnet-sdk
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Europe/London
+    open-pull-requests-limit: 2
+    groups:
+      dotnet-sdk:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
   - package-ecosystem: nuget
     directory: /
     schedule:
@@ -8,12 +24,7 @@ updates:
       time: "04:00"
       timezone: Europe/London
     open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    assignees:
-      - markheydon
     ignore:
-      # Microsoft.OpenApi 3.x is not compatible with ASP.NET Core 10; stay on 2.x until a future ASP.NET release.
       - dependency-name: Microsoft.OpenApi
         update-types:
           - version-update:semver-major
@@ -63,47 +74,6 @@ updates:
           - minor
           - patch
 
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "04:00"
-      timezone: Europe/London
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    assignees:
-      - markheydon
-    groups:
-      github-actions:
-        patterns:
-          - "*"
-        update-types:
-          - major
-          - minor
-          - patch
-
-  - package-ecosystem: devcontainers
-    directory: /.devcontainer
-    schedule:
-      interval: weekly
-      day: monday
-      time: "04:00"
-      timezone: Europe/London
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    assignees:
-      - markheydon
-    groups:
-      devcontainers:
-        patterns:
-          - "*"
-        update-types:
-          - minor
-          - patch
-
   - package-ecosystem: npm
     directory: /src/HugoMatters.Web
     schedule:
@@ -112,12 +82,40 @@ updates:
       time: "04:00"
       timezone: Europe/London
     open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    assignees:
-      - markheydon
     groups:
       npm-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Europe/London
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: devcontainers
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Europe/London
+    open-pull-requests-limit: 5
+    groups:
+      devcontainers:
         patterns:
           - "*"
         update-types:
