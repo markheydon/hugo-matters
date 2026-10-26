@@ -34,12 +34,12 @@
 
   <!-- Microsoft.Extensions -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
   </ItemGroup>
 
   <!-- OpenTelemetry -->
