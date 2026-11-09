@@ -1,0 +1,18 @@
+---
+description: C# guidance for the Hugo Matters application
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# C# guidance
+
+- Follow `.editorconfig`, the existing project structure, and the applicable
+  feature plan.
+- Check the relevant project file and `global.json` before relying on a
+  framework or language feature.
+- Preserve the boundaries described in `.specify/memory/constitution.md`;
+  avoid introducing new architectural layers without a concrete requirement.
+- Keep I/O asynchronous and propagate cancellation where the surrounding API
+  supports it.
+- Add or update tests for changed behaviour, following nearby test patterns.
+- Run the relevant checks from `.github/workflows/ci.yml`.

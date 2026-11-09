@@ -1,0 +1,11 @@
+---
+description: Project skills location for agent workflows
+alwaysApply: true
+---
+
+# Project Skills
+
+Agent skills live in `.agents/skills/`; Cursor Spec Kit workflows live in
+`.cursor/skills/`. When a task matches a skill's description, read its
+`SKILL.md` before proceeding. See `AGENTS.md` for repository context and
+workflow routing.
