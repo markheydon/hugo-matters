@@ -1,0 +1,16 @@
+---
+description: Markdown documentation guidance for this repository
+globs: "**/*.md"
+alwaysApply: false
+---
+
+# Markdown documentation
+
+- Use UK English spelling and vocabulary.
+- Ground product claims in the implementation, the project constitution, and
+  the applicable feature documents under `specs/`.
+- Use `documentation-writer` and `project-documentation` for general project
+  documentation.
+- For ADRs in the repository-root `adr/` directory, use the
+  `create-architectural-decision-record` skill instead.
+- Keep documentation concise and verify examples, commands, and links.
