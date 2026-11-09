@@ -1,44 +1,52 @@
 {
   "name": "Hugo Matters Dev Container",
   "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
-
   "features": {
     "ghcr.io/microsoft/aspire-devcontainer-feature/aspire:3": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:4": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "2"
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "os-provided"
     },
     "ghcr.io/devcontainers/features/node:2": {
       "version": "lts"
     },
-    "ghcr.io/markheydon/devcontainer-features/copilot-likes:1": {}
+    "ghcr.io/devcontainers-extra/features/uv:1": {},
+    "ghcr.io/devcontainers/features/powershell:2": {},
+    "ghcr.io/stu-bell/devcontainer-features/cursor-cli:0": {}
   },
-
   "hostRequirements": {
     "cpus": 2,
-    "memory": "8gb",
+    "memory": "4gb",
     "storage": "32gb"
   },
-
   "containerEnv": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_NOLOGO": "1",
+    "NUGET_XMLDOC_MODE": "skip",
     "SSL_CERT_DIR": "/home/vscode/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs"
   },
-
-  "postCreateCommand": "bash .devcontainer/map-github-app-secrets.sh",
+  "postCreateCommand": "bash .devcontainer/map-github-app-secrets.sh && bash .devcontainer/setup-spec-kit.sh && dotnet --info && dotnet restore HugoMatters.slnx",
   "postStartCommand": "bash .devcontainer/setup-dev-certs.sh",
-
   "customizations": {
     "vscode": {
+      "settings": {
+        "dotnet.defaultSolution": "HugoMatters.slnx",
+        "dotnet.testExplorer.enable": true,
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
       "extensions": [
         "ms-dotnettools.csdevkit",
         "ms-dotnettools.csharp",
         "ms-dotnettools.vscode-dotnet-runtime",
+        "ms-dotnettools.dotnet-test-explorer",
+        "ms-vscode.vscode-test-explorer",
         "github.vscode-pull-request-github",
         "github.vscode-github-actions",
-        "github.copilot",
-        "github.copilot-chat",
         "editorconfig.editorconfig",
-        "microsoft-aspire.aspire-vscode"
+        "microsoft-aspire.aspire-vscode",
+        "streetsidesoftware.code-spell-checker"
       ]
     }
   }
