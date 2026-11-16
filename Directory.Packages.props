@@ -10,6 +10,7 @@
 
   <!-- Application -->
   <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting" Version="13.6.5" />
     <PackageVersion Include="Markdig" Version="1.6.0" />
     <PackageVersion Include="Octokit" Version="14.0.0" />
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
